@@ -132,7 +132,7 @@ input.command::placeholder {
 
 /* Clock styles */
 .clock {
-  position: absolute;
+  position: fixed;
   top: 20px;
   right: 20px;
   color: #ff6b35;
@@ -178,7 +178,7 @@ input.command::placeholder {
 
 /* Audio control button styles */
 .audio-control {
-  position: absolute;
+  position: fixed;
   bottom: 20px;
   right: 20px;
   background: transparent;
