@@ -257,7 +257,8 @@ a {
 
 .nickname-input {
   background: transparent;
-  border: none;
+  border: 1px solid #eee;
+  border-radius: 0px;
   color: #eee;
   font-family: inherit;
   font-size: inherit;
@@ -267,6 +268,16 @@ a {
   caret-color: #eee;
   min-width: 150px;
   text-align: center;
+  padding: 8px 12px;
+  box-shadow: 0 0 8px rgba(255, 107, 53, 0.3),
+    inset 0 0 8px rgba(255, 107, 53, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nickname-input:focus {
+  box-shadow: 0 0 12px rgba(255, 107, 53, 0.5),
+    inset 0 0 12px rgba(255, 107, 53, 0.2);
+  border-color: #ff6b35;
 }
 
 .nickname-input::placeholder {
