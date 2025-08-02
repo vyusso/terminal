@@ -57,11 +57,8 @@ export default function NicknameScreen({ onNicknameSet }: NicknameScreenProps) {
     }
 
     try {
-      // Save nickname to localStorage for persistence
-      localStorage.setItem("terminal_nickname", trimmedNickname);
-
-      // Save to API for future database integration
-      await fetch("/api/save-nickname", {
+      // Save to API first (this will check for duplicates)
+      const response = await fetch("/api/save-nickname", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -69,12 +66,27 @@ export default function NicknameScreen({ onNicknameSet }: NicknameScreenProps) {
         body: JSON.stringify({ nickname: trimmedNickname }),
       });
 
-      // Proceed to terminal with the new nickname
-      onNicknameSet(trimmedNickname);
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Save nickname to localStorage for persistence
+        localStorage.setItem("terminal_nickname", trimmedNickname);
+
+        // Proceed to terminal with the new nickname
+        onNicknameSet(trimmedNickname);
+      } else {
+        // Handle API errors (like duplicate nickname)
+        if (response.status === 409) {
+          setError("Nickname already taken, please choose another one");
+        } else {
+          setError("Failed to save nickname. Please try again.");
+        }
+        setIsLoading(false);
+      }
     } catch (error) {
       console.error("Failed to save nickname:", error);
-      // Still proceed even if API fails (localStorage is the primary storage)
-      onNicknameSet(trimmedNickname);
+      setError("Network error. Please try again.");
+      setIsLoading(false);
     }
   };
 

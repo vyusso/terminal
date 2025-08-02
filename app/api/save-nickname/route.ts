@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { saveUserNickname, checkNicknameExists } from "../../lib/firestore";
 
 /**
  * API Route for saving user nicknames by IP address
  *
  * This endpoint saves the nickname associated with the user's IP address
- * For now, it just returns success (future database integration)
+ * to Firestore database and prevents duplicate nicknames
  */
 export async function POST(request: NextRequest) {
   try {
@@ -26,22 +27,34 @@ export async function POST(request: NextRequest) {
     const realIp = request.headers.get("x-real-ip");
     const ip = forwarded ? forwarded.split(",")[0] : realIp || "unknown";
 
-    // TODO: Save to database with IP address
-    // For now, just log the data
-    console.log(`Saving nickname "${nickname}" for IP: ${ip}`);
+    // Check if nickname already exists (by any IP)
+    const nicknameExists = await checkNicknameExists(nickname);
+    if (nicknameExists) {
+      return NextResponse.json(
+        {
+          error: "Nickname already taken",
+          success: false,
+        },
+        { status: 409 }
+      ); // 409 Conflict
+    }
 
-    // Future database integration:
-    // await db.nicknames.upsert({
-    //   where: { ip },
-    //   update: { nickname },
-    //   create: { ip, nickname }
-    // });
+    // Save to Firestore
+    const result = await saveUserNickname(nickname, ip);
 
-    return NextResponse.json({
-      success: true,
-      message: "Nickname saved successfully",
-      ip: ip,
-    });
+    if (result.success) {
+      return NextResponse.json({
+        success: true,
+        message: "Nickname saved to database",
+        ip: ip,
+      });
+    } else {
+      console.error("Firestore error:", result.error);
+      return NextResponse.json(
+        { error: "Failed to save to database" },
+        { status: 500 }
+      );
+    }
   } catch (error) {
     console.error("Error saving nickname:", error);
     return NextResponse.json(

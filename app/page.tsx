@@ -73,17 +73,36 @@ export default function Home() {
    * Handles successful password authentication
    * Checks for existing nickname and proceeds accordingly
    */
-  const handlePasswordCorrect = () => {
+  const handlePasswordCorrect = async () => {
     setPasswordCorrect(true);
 
-    // Check if user already has a nickname saved
-    const savedNickname = localStorage.getItem("terminal_nickname");
-    if (savedNickname) {
-      // User has existing nickname - go straight to terminal
-      setNickname(savedNickname);
+    try {
+      // First check localStorage for immediate access
+      const savedNickname = localStorage.getItem("terminal_nickname");
+      if (savedNickname) {
+        setNickname(savedNickname);
+        setIsLoading(false);
+        return;
+      }
+
+      // If no localStorage, check database by IP
+      const response = await fetch("/api/get-nickname");
+      const data = await response.json();
+
+      if (data.success && data.exists && data.nickname) {
+        // User has existing nickname in database - save to localStorage and proceed
+        localStorage.setItem("terminal_nickname", data.nickname);
+        setNickname(data.nickname);
+        setIsLoading(false);
+      } else {
+        // No nickname exists - show nickname screen
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.error("Error checking nickname:", error);
+      // Fallback to showing nickname screen
       setIsLoading(false);
     }
-    // If no nickname exists, the nickname screen will be shown
   };
 
   /**
