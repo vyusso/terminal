@@ -16,16 +16,16 @@ const USERS_COLLECTION = "users";
 /**
  * Save user nickname to Firestore
  * @param nickname - User's nickname
- * @param ipAddress - User's IP address (for tracking)
+ * @param deviceId - Unique device identifier (IP + User Agent)
  */
-export const saveUserNickname = async (nickname: string, ipAddress: string) => {
+export const saveUserNickname = async (nickname: string, deviceId: string) => {
   try {
-    // Create a user document with IP as identifier
-    const userRef = doc(db, USERS_COLLECTION, ipAddress);
+    // Create a user document with device ID as identifier
+    const userRef = doc(db, USERS_COLLECTION, deviceId);
 
     await setDoc(userRef, {
       nickname,
-      ipAddress,
+      deviceId,
       createdAt: serverTimestamp(),
       lastSeen: serverTimestamp(),
       isActive: true,
@@ -40,12 +40,12 @@ export const saveUserNickname = async (nickname: string, ipAddress: string) => {
 };
 
 /**
- * Get user data by IP address
- * @param ipAddress - User's IP address
+ * Get user data by device ID
+ * @param deviceId - Unique device identifier
  */
-export const getUserByIP = async (ipAddress: string) => {
+export const getUserByIP = async (deviceId: string) => {
   try {
-    const userRef = doc(db, USERS_COLLECTION, ipAddress);
+    const userRef = doc(db, USERS_COLLECTION, deviceId);
     const userDoc = await getDoc(userRef);
 
     if (userDoc.exists()) {

@@ -22,10 +22,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get client IP address
+    // Get client IP address and user agent for device-specific identification
     const forwarded = request.headers.get("x-forwarded-for");
     const realIp = request.headers.get("x-real-ip");
     const ip = forwarded ? forwarded.split(",")[0] : realIp || "unknown";
+    const userAgent = request.headers.get("user-agent") || "";
+
+    // Create a unique device identifier (User Agent only for cross-network consistency)
+    const deviceId = userAgent;
 
     // Check if nickname already exists (by any IP)
     const nicknameExists = await checkNicknameExists(nickname);
@@ -39,14 +43,15 @@ export async function POST(request: NextRequest) {
       ); // 409 Conflict
     }
 
-    // Save to Firestore
-    const result = await saveUserNickname(nickname, ip);
+    // Save to Firestore with device-specific ID
+    const result = await saveUserNickname(nickname, deviceId);
 
     if (result.success) {
       return NextResponse.json({
         success: true,
         message: "Nickname saved to database",
         ip: ip,
+        deviceId: deviceId,
       });
     } else {
       console.error("Firestore error:", result.error);
