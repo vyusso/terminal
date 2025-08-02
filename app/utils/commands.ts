@@ -1,12 +1,30 @@
 import { CommandResult, TerminalState } from "../types/terminal";
 import { getNodeAtPath, getParentPath, isValidPath } from "./fileSystem";
 
+/**
+ * Main command execution function
+ * Parses the command string and routes to the appropriate command handler
+ *
+ * @param command - The full command string (e.g., "ls -la")
+ * @param state - Current terminal state
+ * @returns CommandResult with output or error
+ *
+ * Supported commands:
+ * - cd: Change directory
+ * - ls: List directory contents
+ * - mkdir: Create directory
+ * - clear: Clear terminal (handled by hook)
+ * - pwd: Print working directory
+ * - whoami: Show current user
+ */
 export const executeCommand = (
   command: string,
   state: TerminalState
 ): CommandResult => {
+  // Split command into command name and arguments
   const [cmd, ...args] = command.trim().split(" ");
 
+  // Route to appropriate command handler
   switch (cmd) {
     case "cd":
       return executeCd(args, state);
@@ -15,7 +33,7 @@ export const executeCommand = (
     case "mkdir":
       return executeMkdir(args, state);
     case "clear":
-      return { output: [] };
+      return { output: [] }; // Clear is handled by the hook
     case "pwd":
       return { output: [state.currentDirectory] };
     case "whoami":
@@ -27,33 +45,52 @@ export const executeCommand = (
           error: `command not found: ${cmd}`,
         };
       }
-      return { output: [] };
+      return { output: [] }; // Empty command
   }
 };
 
+/**
+ * Handles the 'cd' (change directory) command
+ *
+ * @param args - Command arguments (target directory)
+ * @param state - Current terminal state
+ * @returns CommandResult (empty output if successful, error if failed)
+ *
+ * Supported syntax:
+ * - cd (no args) -> go to home directory
+ * - cd ~ -> go to home directory
+ * - cd .. -> go to parent directory
+ * - cd - -> go to previous directory (simplified)
+ * - cd /path/to/dir -> go to absolute path
+ * - cd dirname -> go to relative path
+ */
 const executeCd = (args: string[], state: TerminalState): CommandResult => {
   const targetPath = args[0];
 
+  // Handle home directory cases
   if (!targetPath || targetPath === "~") {
     return { output: [] }; // Will be handled by the hook
   }
 
+  // Handle previous directory (simplified implementation)
   if (targetPath === "-") {
-    // Go back to previous directory (simplified)
     return { output: [] };
   }
 
-  // Handle relative paths
+  // Calculate the new path
   let newPath = targetPath;
   if (targetPath === "..") {
+    // Go to parent directory
     newPath = getParentPath(state.currentDirectory);
   } else if (!targetPath.startsWith("/")) {
+    // Handle relative paths
     newPath =
       state.currentDirectory === "/"
         ? `/${targetPath}`
         : `${state.currentDirectory}/${targetPath}`;
   }
 
+  // Validate the path syntax
   if (!isValidPath(newPath)) {
     return {
       output: [],
@@ -61,6 +98,7 @@ const executeCd = (args: string[], state: TerminalState): CommandResult => {
     };
   }
 
+  // Check if the target exists in the file system
   const targetNode = getNodeAtPath(state.fileSystem, newPath);
   if (!targetNode) {
     return {
@@ -69,6 +107,7 @@ const executeCd = (args: string[], state: TerminalState): CommandResult => {
     };
   }
 
+  // Ensure the target is a directory
   if (targetNode.type !== "directory") {
     return {
       output: [],
@@ -76,12 +115,26 @@ const executeCd = (args: string[], state: TerminalState): CommandResult => {
     };
   }
 
-  return { output: [] }; // Will be handled by the hook
+  return { output: [] }; // Success - actual directory change handled by hook
 };
 
+/**
+ * Handles the 'ls' (list) command
+ *
+ * @param args - Command arguments (optional target directory)
+ * @param state - Current terminal state
+ * @returns CommandResult with list of files/directories
+ *
+ * Usage:
+ * - ls -> list current directory
+ * - ls /path/to/dir -> list specified directory
+ * - ls dirname -> list relative directory
+ */
 const executeLs = (args: string[], state: TerminalState): CommandResult => {
+  // Use current directory if no target specified
   const targetPath = args[0] || state.currentDirectory;
 
+  // Resolve relative paths to absolute paths
   let pathToCheck = targetPath;
   if (!targetPath.startsWith("/")) {
     pathToCheck =
@@ -90,6 +143,7 @@ const executeLs = (args: string[], state: TerminalState): CommandResult => {
         : `${state.currentDirectory}/${targetPath}`;
   }
 
+  // Validate path syntax
   if (!isValidPath(pathToCheck)) {
     return {
       output: [],
@@ -97,6 +151,7 @@ const executeLs = (args: string[], state: TerminalState): CommandResult => {
     };
   }
 
+  // Get the target node from file system
   const targetNode = getNodeAtPath(state.fileSystem, pathToCheck);
   if (!targetNode) {
     return {
@@ -105,16 +160,19 @@ const executeLs = (args: string[], state: TerminalState): CommandResult => {
     };
   }
 
+  // Handle file listing (just return the filename)
   if (targetNode.type === "file") {
     return { output: [targetNode.name] };
   }
 
+  // Handle directory listing
   if (targetNode.type === "directory") {
     const children = targetNode.children || [];
     if (children.length === 0) {
-      return { output: [] };
+      return { output: [] }; // Empty directory
     }
 
+    // Return names of all children
     const names = children.map((child) => child.name);
     return { output: names };
   }
@@ -122,7 +180,22 @@ const executeLs = (args: string[], state: TerminalState): CommandResult => {
   return { output: [] };
 };
 
+/**
+ * Handles the 'mkdir' (make directory) command
+ *
+ * @param args - Command arguments (directory name)
+ * @param state - Current terminal state
+ * @returns CommandResult (empty output if successful, error if failed)
+ *
+ * Usage:
+ * - mkdir dirname -> create directory with specified name
+ *
+ * Validation:
+ * - Directory name must contain only alphanumeric characters, dots, underscores, and hyphens
+ * - Directory must not already exist
+ */
 const executeMkdir = (args: string[], state: TerminalState): CommandResult => {
+  // Check if directory name was provided
   if (args.length === 0) {
     return {
       output: [],
@@ -132,6 +205,7 @@ const executeMkdir = (args: string[], state: TerminalState): CommandResult => {
 
   const dirName = args[0];
 
+  // Validate directory name format (alphanumeric, dots, underscores, hyphens only)
   if (!dirName.match(/^[a-zA-Z0-9._-]+$/)) {
     return {
       output: [],
@@ -139,7 +213,7 @@ const executeMkdir = (args: string[], state: TerminalState): CommandResult => {
     };
   }
 
-  // Check if directory already exists
+  // Get the current directory node
   const currentDir = getNodeAtPath(state.fileSystem, state.currentDirectory);
   if (!currentDir || currentDir.type !== "directory") {
     return {
@@ -148,6 +222,7 @@ const executeMkdir = (args: string[], state: TerminalState): CommandResult => {
     };
   }
 
+  // Check if directory already exists
   const existingChild = currentDir.children?.find(
     (child) => child.name === dirName
   );
@@ -158,6 +233,6 @@ const executeMkdir = (args: string[], state: TerminalState): CommandResult => {
     };
   }
 
-  // Add new directory (will be handled by the hook)
+  // Directory creation will be handled by the hook
   return { output: [] };
 };

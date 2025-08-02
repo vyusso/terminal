@@ -1,5 +1,21 @@
 import { FileSystemNode } from "../types/terminal";
 
+/**
+ * Creates a virtual file system with a basic directory structure
+ * This simulates a Unix-like file system with common directories
+ *
+ * Structure:
+ * /
+ * ├── home/
+ * │   └── angel/
+ * │       ├── Documents/
+ * │       ├── Downloads/
+ * │       ├── Desktop/
+ * │       └── readme.txt
+ * ├── bin/
+ * ├── etc/
+ * └── var/
+ */
 export const createFileSystem = (): FileSystemNode => ({
   name: "/",
   type: "directory",
@@ -26,35 +42,80 @@ export const createFileSystem = (): FileSystemNode => ({
   ],
 });
 
+/**
+ * Navigates to a specific node in the file system using a path
+ *
+ * @param fileSystem - The root of the file system tree
+ * @param path - The path to navigate to (e.g., "/home/angel/Documents")
+ * @returns The node at the specified path, or null if path doesn't exist
+ *
+ * Example:
+ * getNodeAtPath(fileSystem, "/home/angel") -> returns the angel directory node
+ */
 export const getNodeAtPath = (
   fileSystem: FileSystemNode,
   path: string
 ): FileSystemNode | null => {
+  // Root directory is a special case
   if (path === "/") return fileSystem;
 
+  // Split path into parts and filter out empty strings
   const parts = path.split("/").filter(Boolean);
   let current = fileSystem;
 
+  // Navigate through each part of the path
   for (const part of parts) {
     const child = current.children?.find((node) => node.name === part);
-    if (!child) return null;
+    if (!child) return null; // Path doesn't exist
     current = child;
   }
 
   return current;
 };
 
+/**
+ * Gets the parent directory path of a given path
+ *
+ * @param path - The current path
+ * @returns The parent directory path
+ *
+ * Examples:
+ * getParentPath("/home/angel/Documents") -> "/home/angel"
+ * getParentPath("/home/angel") -> "/home"
+ * getParentPath("/home") -> "/"
+ */
 export const getParentPath = (path: string): string => {
   const parts = path.split("/").filter(Boolean);
-  parts.pop();
+  parts.pop(); // Remove the last part (current directory)
   return parts.length === 0 ? "/" : "/" + parts.join("/");
 };
 
+/**
+ * Extracts the name of the current directory from a full path
+ *
+ * @param path - The full path
+ * @returns Just the name of the current directory
+ *
+ * Examples:
+ * getCurrentDirectoryName("/home/angel/Documents") -> "Documents"
+ * getCurrentDirectoryName("/home/angel") -> "angel"
+ * getCurrentDirectoryName("/") -> "/"
+ */
 export const getCurrentDirectoryName = (path: string): string => {
   const parts = path.split("/").filter(Boolean);
   return parts.length === 0 ? "/" : parts[parts.length - 1];
 };
 
+/**
+ * Validates if a path is syntactically correct
+ *
+ * @param path - The path to validate
+ * @returns true if the path is valid, false otherwise
+ *
+ * Rules:
+ * - Must start with "/" (absolute path)
+ * - Cannot contain ".." (for security reasons)
+ */
 export const isValidPath = (path: string): boolean => {
   return path.startsWith("/") && !path.includes("..");
 };
