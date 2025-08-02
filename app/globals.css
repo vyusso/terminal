@@ -210,7 +210,7 @@ input.command::placeholder {
 /* Terminal container styles */
 .terminal-container {
   width: 100vw;
-  height: 100vh;
+  height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 4px 0px 0px 0px;
@@ -259,6 +259,37 @@ a {
   body {
     margin-left: 0em;
     margin-right: 0em;
+  }
+}
+
+/* Mobile viewport fix */
+@media screen and (max-width: 768px) {
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .terminal-container {
+    height: 100vh;
+    height: -webkit-fill-available;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+
+  .clock {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+  }
+
+  .audio-control {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
   }
 }
 
