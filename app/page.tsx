@@ -3,7 +3,20 @@
 import { useTerminal } from "./hooks/useTerminal";
 import TerminalLine from "./components/TerminalLine";
 import TerminalInput from "./components/TerminalInput";
+import AsciiArt from "./components/AsciiArt";
+import dynamic from "next/dynamic";
 import { useEffect, useRef } from "react";
+
+// Dynamically import Clock component with no SSR to prevent hydration issues
+const Clock = dynamic(() => import("./components/Clock"), {
+  ssr: false,
+  loading: () => (
+    <div className="clock">
+      <div className="clock-time">--:--:--</div>
+      <div className="clock-date">-- -- --</div>
+    </div>
+  ),
+});
 
 /**
  * Main Terminal Page Component
@@ -37,27 +50,35 @@ export default function Home() {
   }, [lines]);
 
   return (
-    <div
-      ref={terminalRef}
-      className="terminal-container"
-      suppressHydrationWarning={true}
-    >
-      {/* Render all terminal lines (commands, outputs, errors) */}
-      {lines.map((line, index) => (
-        <TerminalLine
-          key={`${line.timestamp}-${index}`}
-          line={line}
+    <>
+      {/* Clock component in top right */}
+      <Clock />
+
+      <div
+        ref={terminalRef}
+        className="terminal-container"
+        suppressHydrationWarning={true}
+      >
+        {/* ASCII Art at the top */}
+        <AsciiArt />
+
+        {/* Render all terminal lines (commands, outputs, errors) */}
+        {lines.map((line, index) => (
+          <TerminalLine
+            key={`${line.timestamp}-${index}`}
+            line={line}
+            currentDirectory={currentDirectory}
+          />
+        ))}
+
+        {/* Command input component at the bottom */}
+        <TerminalInput
+          onExecute={executeCommand}
+          history={history}
+          currentPrompt={currentPrompt}
           currentDirectory={currentDirectory}
         />
-      ))}
-
-      {/* Command input component at the bottom */}
-      <TerminalInput
-        onExecute={executeCommand}
-        history={history}
-        currentPrompt={currentPrompt}
-        currentDirectory={currentDirectory}
-      />
-    </div>
+      </div>
+    </>
   );
 }
