@@ -7,6 +7,7 @@ import { getNodeAtPath, getParentPath, isValidPath } from "./fileSystem";
  *
  * @param command - The full command string (e.g., "ls -la")
  * @param state - Current terminal state
+ * @param nickname - Current user's nickname
  * @returns CommandResult with output or error
  *
  * Supported commands:
@@ -19,7 +20,8 @@ import { getNodeAtPath, getParentPath, isValidPath } from "./fileSystem";
  */
 export const executeCommand = (
   command: string,
-  state: TerminalState
+  state: TerminalState,
+  nickname: string
 ): CommandResult => {
   // Split command into command name and arguments
   const [cmd, ...args] = command.trim().split(" ");
@@ -37,7 +39,7 @@ export const executeCommand = (
     case "pwd":
       return { output: [state.currentDirectory] };
     case "whoami":
-      return { output: ["angel"] };
+      return { output: [nickname] };
     default:
       if (cmd) {
         return {

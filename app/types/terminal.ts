@@ -36,7 +36,7 @@ export interface FileSystemNode {
  * Contains all the data needed to maintain terminal functionality
  */
 export interface TerminalState {
-  /** Current working directory path (e.g., "/home/angel") */
+  /** Current working directory path (e.g., "/home/user") */
   currentDirectory: string;
   /** The entire virtual file system structure */
   fileSystem: FileSystemNode;

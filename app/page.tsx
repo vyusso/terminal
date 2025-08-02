@@ -4,8 +4,9 @@ import { useTerminal } from "./hooks/useTerminal";
 import TerminalLine from "./components/TerminalLine";
 import TerminalInput from "./components/TerminalInput";
 import AsciiArt from "./components/AsciiArt";
+import LandingPage from "./components/LandingPage";
 import dynamic from "next/dynamic";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // Dynamically import Clock component with no SSR to prevent hydration issues
 const Clock = dynamic(() => import("./components/Clock"), {
@@ -32,15 +33,19 @@ const AudioPlayer = dynamic(() => import("./components/AudioPlayer"), {
  * the display of all terminal lines and the input component.
  *
  * Features:
+ * - Landing page for nickname setup
  * - Displays all terminal output lines
  * - Shows the command input at the bottom
  * - Auto-scrolls to the bottom when new content is added
  * - Provides a complete terminal experience
  */
 export default function Home() {
+  const [nickname, setNickname] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
   // Get all terminal functionality from the custom hook
   const { lines, currentDirectory, currentPrompt, executeCommand, history } =
-    useTerminal();
+    useTerminal(nickname || "user");
 
   // Reference to the terminal container for auto-scrolling
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -54,6 +59,19 @@ export default function Home() {
       terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
     }
   }, [lines]);
+
+  /**
+   * Handle nickname setup
+   */
+  const handleNicknameSet = (newNickname: string) => {
+    setNickname(newNickname);
+    setIsLoading(false);
+  };
+
+  // Show landing page if no nickname is set
+  if (isLoading || !nickname) {
+    return <LandingPage onNicknameSet={handleNicknameSet} />;
+  }
 
   return (
     <>
@@ -77,6 +95,7 @@ export default function Home() {
             key={`${line.timestamp}-${index}`}
             line={line}
             currentDirectory={currentDirectory}
+            nickname={nickname}
           />
         ))}
 
@@ -86,6 +105,7 @@ export default function Home() {
           history={history}
           currentPrompt={currentPrompt}
           currentDirectory={currentDirectory}
+          nickname={nickname}
         />
       </div>
     </>

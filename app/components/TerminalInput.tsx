@@ -15,6 +15,8 @@ interface TerminalInputProps {
   currentPrompt: string;
   /** Full current directory path */
   currentDirectory: string;
+  /** User's nickname */
+  nickname: string;
 }
 
 /**
@@ -33,6 +35,7 @@ export default function TerminalInput({
   history,
   currentPrompt,
   currentDirectory,
+  nickname,
 }: TerminalInputProps) {
   /** Current input value in the command field */
   const [input, setInput] = useState("");
@@ -103,7 +106,8 @@ export default function TerminalInput({
     <div className="terminal-line" suppressHydrationWarning={true}>
       {/* Command prompt showing user and current directory */}
       <span className="prompt">
-        <span className="username">angel</span>@terminal:{currentDirectory}$
+        <span className="username">{nickname}</span>@terminal:{currentDirectory}
+        $
       </span>
 
       {/* Command input form */}

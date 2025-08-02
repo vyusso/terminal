@@ -135,6 +135,29 @@ export default function AudioPlayer() {
       >
         PLAY
       </button>
+
+      {/* Debug: Logout button (temporary) */}
+      <button
+        onClick={() => {
+          localStorage.removeItem("terminal_nickname");
+          window.location.reload();
+        }}
+        style={{
+          position: "fixed",
+          bottom: "20px",
+          right: "120px",
+          background: "transparent",
+          border: "1px solid #ff6b35",
+          color: "#ff6b35",
+          padding: "4px 8px",
+          cursor: "pointer",
+          fontSize: "12px",
+          zIndex: 1000,
+        }}
+        title="Logout (Debug)"
+      >
+        LOGOUT
+      </button>
     </>
   );
 }

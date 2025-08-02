@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { TerminalLine, TerminalState } from "../types/terminal";
 import {
   createFileSystem,
@@ -20,7 +20,7 @@ import { executeCommand } from "../utils/commands";
  * - Directory creation
  * - Terminal clearing
  */
-export const useTerminal = () => {
+export const useTerminal = (nickname: string) => {
   /**
    * Main terminal state containing:
    * - currentDirectory: Current working directory path
@@ -29,8 +29,8 @@ export const useTerminal = () => {
    * - historyIndex: Current position in command history
    */
   const [state, setState] = useState<TerminalState>({
-    currentDirectory: "/home/angel", // Start in user's home directory
-    fileSystem: createFileSystem(), // Initialize virtual file system
+    currentDirectory: `/home/${nickname}`, // Start in user's home directory
+    fileSystem: createFileSystem(nickname), // Initialize virtual file system
     history: [], // Command history starts empty
     historyIndex: -1, // No history position initially
   });
@@ -40,6 +40,17 @@ export const useTerminal = () => {
    * Each line represents something displayed in the terminal
    */
   const [lines, setLines] = useState<TerminalLine[]>([]);
+
+  // Update terminal state when nickname changes
+  useEffect(() => {
+    setState({
+      currentDirectory: `/home/${nickname}`, // Start in user's home directory
+      fileSystem: createFileSystem(nickname), // Initialize virtual file system
+      history: [], // Command history starts empty
+      historyIndex: -1, // No history position initially
+    });
+    setLines([]); // Clear terminal lines when nickname changes
+  }, [nickname]);
 
   /**
    * Adds a new line to the terminal output
@@ -77,7 +88,7 @@ export const useTerminal = () => {
       });
 
       // Execute the command and get result
-      const result = executeCommand(command, state);
+      const result = executeCommand(command, state, nickname);
 
       // Parse command for special handling
       const [cmd, ...args] = command.trim().split(" ");
@@ -92,13 +103,13 @@ export const useTerminal = () => {
           // Handle different cd scenarios
           if (!targetPath || targetPath === "~") {
             // Go to home directory
-            newPath = "/home/angel";
+            newPath = `/home/${nickname}`;
           } else if (targetPath === "..") {
             // Go to parent directory
             newPath = getParentPath(state.currentDirectory);
           } else if (targetPath === "-") {
             // Go back to previous directory (simplified - always goes to home)
-            newPath = "/home/angel";
+            newPath = `/home/${nickname}`;
           } else {
             // Handle relative and absolute paths
             if (!targetPath.startsWith("/")) {
@@ -173,8 +184,8 @@ export const useTerminal = () => {
    * @returns The name of the current directory
    *
    * Examples:
-   * "/home/angel" -> "angel"
-   * "/home/angel/Documents" -> "Documents"
+   * "/home/user" -> "user"
+   * "/home/user/Documents" -> "Documents"
    * "/" -> "/"
    */
   const getCurrentPrompt = useCallback(() => {

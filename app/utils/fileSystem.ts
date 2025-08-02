@@ -7,7 +7,7 @@ import { FileSystemNode } from "../types/terminal";
  * Structure:
  * /
  * ├── home/
- * │   └── angel/
+ * │   └── [nickname]/
  * │       ├── Documents/
  * │       ├── Downloads/
  * │       ├── Desktop/
@@ -16,7 +16,7 @@ import { FileSystemNode } from "../types/terminal";
  * ├── etc/
  * └── var/
  */
-export const createFileSystem = (): FileSystemNode => ({
+export const createFileSystem = (nickname: string): FileSystemNode => ({
   name: "/",
   type: "directory",
   children: [
@@ -25,7 +25,7 @@ export const createFileSystem = (): FileSystemNode => ({
       type: "directory",
       children: [
         {
-          name: "angel",
+          name: nickname,
           type: "directory",
           children: [
             { name: "Documents", type: "directory", children: [] },
@@ -46,11 +46,11 @@ export const createFileSystem = (): FileSystemNode => ({
  * Navigates to a specific node in the file system using a path
  *
  * @param fileSystem - The root of the file system tree
- * @param path - The path to navigate to (e.g., "/home/angel/Documents")
+ * @param path - The path to navigate to (e.g., "/home/user/Documents")
  * @returns The node at the specified path, or null if path doesn't exist
  *
  * Example:
- * getNodeAtPath(fileSystem, "/home/angel") -> returns the angel directory node
+ * getNodeAtPath(fileSystem, "/home/user") -> returns the user directory node
  */
 export const getNodeAtPath = (
   fileSystem: FileSystemNode,
@@ -80,8 +80,8 @@ export const getNodeAtPath = (
  * @returns The parent directory path
  *
  * Examples:
- * getParentPath("/home/angel/Documents") -> "/home/angel"
- * getParentPath("/home/angel") -> "/home"
+ * getParentPath("/home/user/Documents") -> "/home/user"
+ * getParentPath("/home/user") -> "/home"
  * getParentPath("/home") -> "/"
  */
 export const getParentPath = (path: string): string => {
@@ -97,8 +97,8 @@ export const getParentPath = (path: string): string => {
  * @returns Just the name of the current directory
  *
  * Examples:
- * getCurrentDirectoryName("/home/angel/Documents") -> "Documents"
- * getCurrentDirectoryName("/home/angel") -> "angel"
+ * getCurrentDirectoryName("/home/user/Documents") -> "Documents"
+ * getCurrentDirectoryName("/home/user") -> "user"
  * getCurrentDirectoryName("/") -> "/"
  */
 export const getCurrentDirectoryName = (path: string): string => {

@@ -9,6 +9,8 @@ interface TerminalLineProps {
   line: TerminalLineType;
   /** Current directory path (used for command line prompts) */
   currentDirectory?: string;
+  /** User's nickname */
+  nickname: string;
 }
 
 /**
@@ -26,6 +28,7 @@ interface TerminalLineProps {
 export default function TerminalLine({
   line,
   currentDirectory,
+  nickname,
 }: TerminalLineProps) {
   // Render command lines with prompt
   if (line.type === "command") {
@@ -33,7 +36,7 @@ export default function TerminalLine({
       <div className="terminal-line" suppressHydrationWarning={true}>
         {/* Command prompt showing user and directory */}
         <span className="prompt">
-          <span className="username">angel</span>@terminal:
+          <span className="username">{nickname}</span>@terminal:
           {currentDirectory || "~"}$
         </span>
         {/* The actual command that was typed */}
