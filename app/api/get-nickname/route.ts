@@ -1,5 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserByIP } from "../../lib/firestore";
+import { createHash } from "crypto";
+
+/**
+ * Create a short hash from a string
+ * @param input - String to hash
+ * @returns Short hash string
+ */
+function createShortHash(input: string): string {
+  return createHash("sha256").update(input).digest("hex").substring(0, 16);
+}
 
 /**
  * API Route for getting user nickname by IP address
@@ -15,8 +25,8 @@ export async function GET(request: NextRequest) {
     const ip = forwarded ? forwarded.split(",")[0] : realIp || "unknown";
     const userAgent = request.headers.get("user-agent") || "";
 
-    // Create a unique device identifier (User Agent only for cross-network consistency)
-    const deviceId = userAgent;
+    // Create a unique device identifier (hash of User Agent for cross-network consistency)
+    const deviceId = createShortHash(userAgent);
 
     // Get user data from Firestore using device-specific ID
     const result = await getUserByIP(deviceId);
