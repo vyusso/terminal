@@ -231,7 +231,7 @@ const executeMkdir = (args: string[], state: TerminalState): CommandResult => {
   if (existingChild) {
     return {
       output: [],
-      error: `mkdir: cannot create directory '${dirName}': File exists`,
+      error: `mkdir: cannot create directory '${dirName}': Directory already exists`,
     };
   }
 

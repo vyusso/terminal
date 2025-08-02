@@ -128,28 +128,40 @@ export const useTerminal = (nickname: string) => {
           setState((prev) => ({ ...prev, currentDirectory: newPath }));
         }
       } else if (cmd === "mkdir") {
-        // Handle directory creation
-        const dirName = args[0];
-        if (dirName) {
-          setState((prev) => {
-            const newFileSystem = { ...prev.fileSystem };
-            const currentDir = getNodeAtPath(
-              newFileSystem,
-              prev.currentDirectory
-            );
+        // Handle directory creation only if command executed successfully
+        if (!result.error) {
+          const dirName = args[0];
+          if (dirName) {
+            setState((prev) => {
+              const newFileSystem = { ...prev.fileSystem };
+              const currentDir = getNodeAtPath(
+                newFileSystem,
+                prev.currentDirectory
+              );
 
-            // Add new directory to current directory's children
-            if (currentDir && currentDir.type === "directory") {
-              if (!currentDir.children) currentDir.children = [];
-              currentDir.children.push({
-                name: dirName,
-                type: "directory",
-                children: [],
-              });
-            }
+              // Add new directory to current directory's children
+              if (currentDir && currentDir.type === "directory") {
+                if (!currentDir.children) currentDir.children = [];
 
-            return { ...prev, fileSystem: newFileSystem };
-          });
+                // Check if directory already exists to prevent duplicates
+                const existingDir = currentDir.children.find(
+                  (child) =>
+                    child.name === dirName && child.type === "directory"
+                );
+
+                if (!existingDir) {
+                  currentDir.children.push({
+                    name: dirName,
+                    type: "directory",
+                    children: [],
+                  });
+                }
+                // If directory already exists, silently skip (no error needed)
+              }
+
+              return { ...prev, fileSystem: newFileSystem };
+            });
+          }
         }
       } else if (cmd === "clear") {
         // Clear all terminal lines

@@ -41,6 +41,11 @@ export default function LandingPage({ onNicknameSet }: LandingPageProps) {
       return;
     }
 
+    if (nickname.includes(" ")) {
+      setError("Nickname cannot contain spaces");
+      return;
+    }
+
     // Save nickname locally
     localStorage.setItem("terminal_nickname", nickname.trim());
 

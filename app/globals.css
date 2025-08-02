@@ -304,6 +304,8 @@ a {
   opacity: 0.8;
 }
 
+/* Password and Nickname Form Styles */
+.password-form,
 .nickname-form {
   display: flex;
   flex-direction: column;
@@ -312,13 +314,17 @@ a {
   position: relative;
 }
 
-.input-group {
+.input-group,
+.password-prompt,
+.nickname-prompt {
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 8px;
   font-size: 1.1em;
 }
 
+.password-input,
 .nickname-input {
   background: transparent;
   border: 1px solid #eee;
@@ -338,12 +344,14 @@ a {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.password-input:focus,
 .nickname-input:focus {
   box-shadow: 0 0 12px rgba(255, 107, 53, 0.5),
     inset 0 0 12px rgba(255, 107, 53, 0.2);
   border-color: #ff6b35;
 }
 
+.password-input::placeholder,
 .nickname-input::placeholder {
   color: #ccc;
   opacity: 0.9;
@@ -351,7 +359,7 @@ a {
 
 .error-message {
   color: #ff6b6b;
-  font-size: 0.8em;
+  font-size: 1.1em;
   text-shadow: 0 0 5px #ff6b6b;
   position: absolute;
   top: 100%;
@@ -370,7 +378,7 @@ a {
 }
 
 .loading-text {
-  font-size: 1em;
+  font-size: 1.1em;
   color: #ff6b35;
   text-shadow: 0 0 10px #ff6b35;
 }
