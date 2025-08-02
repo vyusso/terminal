@@ -58,7 +58,7 @@ export default function LandingPage({ onNicknameSet }: LandingPageProps) {
         },
         body: JSON.stringify({ nickname: nickname.trim() }),
       });
-    } catch (error) {
+    } catch {
       console.log("Failed to save nickname to server, but saved locally");
     }
 

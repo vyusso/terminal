@@ -10,7 +10,7 @@ import { useState, useEffect, useRef } from "react";
  */
 export default function AudioPlayer() {
   const [isMuted, setIsMuted] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false); // Used in useEffect and manualPlay
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
