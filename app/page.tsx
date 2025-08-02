@@ -18,6 +18,12 @@ const Clock = dynamic(() => import("./components/Clock"), {
   ),
 });
 
+// Dynamically import AudioPlayer component with no SSR to prevent hydration issues
+const AudioPlayer = dynamic(() => import("./components/AudioPlayer"), {
+  ssr: false,
+  loading: () => null, // No loading state for audio player
+});
+
 /**
  * Main Terminal Page Component
  *
@@ -53,6 +59,9 @@ export default function Home() {
     <>
       {/* Clock component in top right */}
       <Clock />
+
+      {/* Audio player component */}
+      <AudioPlayer />
 
       <div
         ref={terminalRef}

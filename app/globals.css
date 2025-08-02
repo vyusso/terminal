@@ -1,17 +1,11 @@
 @import "tailwindcss";
 
 /* CRT Effect Styles */
-@font-face {
-  font-family: "Noto Sans Display";
-  font-style: normal;
-  font-weight: 400;
-  src: url("https://fonts.googleapis.com/css2?family=Noto+Sans+Display:wght@400&display=swap");
-}
 
 html {
   background: #000;
   /* padding: 10px; */
-  font-family: "Noto Sans Display", monospace;
+  font-family: "Courier New", "Monaco", "Consolas", monospace;
   color: #eee;
   font-size: 16px;
   line-height: 1.4;
@@ -116,6 +110,37 @@ input.command::placeholder {
   transform: scaleX(0.7);
   transform-origin: left top;
   width: 142.86%; /* 100% / 0.7 to compensate for the scale */
+}
+
+/* Audio control button styles */
+.audio-control {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: transparent;
+  border: none;
+  color: #ff6b35;
+  font-size: 18px;
+  padding: 0;
+  cursor: pointer;
+  z-index: 1000;
+  font-family: inherit;
+  text-shadow: 0 0 5px #ff6b35;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.audio-control:hover {
+  text-shadow: 0 0 8px #ff6b35;
+}
+
+.audio-control svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
 }
 
 /* Terminal container styles */
