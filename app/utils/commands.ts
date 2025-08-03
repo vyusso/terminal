@@ -17,6 +17,7 @@ import { getNodeAtPath, getParentPath, isValidPath } from "./fileSystem";
  * - clear: Clear terminal (handled by hook)
  * - pwd: Print working directory
  * - whoami: Show current user
+ * - help: Show available commands
  */
 export const executeCommand = (
   command: string,
@@ -40,6 +41,8 @@ export const executeCommand = (
       return { output: [state.currentDirectory] };
     case "whoami":
       return { output: [nickname] };
+    case "help":
+      return executeHelp();
     default:
       if (cmd) {
         return {
@@ -237,4 +240,37 @@ const executeMkdir = (args: string[], state: TerminalState): CommandResult => {
 
   // Directory creation will be handled by the hook
   return { output: [] };
+};
+
+/**
+ * Handles the 'help' command
+ * Displays all available commands with their descriptions
+ *
+ * @returns CommandResult with help information
+ */
+const executeHelp = (): CommandResult => {
+  const helpText = [
+    "Available commands:",
+    "",
+    "  cd [directory]     - Change directory",
+    "                      Examples: cd, cd ~, cd .., cd Documents",
+    "",
+    "  ls [directory]     - List directory contents",
+    "                      Examples: ls, ls /home/user",
+    "",
+    "  mkdir <name>       - Create a new directory",
+    "                      Example: mkdir myfolder",
+    "",
+    "  pwd                - Print current working directory",
+    "",
+    "  whoami             - Display current user nickname",
+    "",
+    "  clear              - Clear terminal screen",
+    "",
+    "  help               - Show this help message",
+    "",
+    "Note: Directory names can contain letters, numbers, dots, underscores, and hyphens.",
+  ];
+
+  return { output: helpText };
 };

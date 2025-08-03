@@ -85,6 +85,7 @@ export const useTerminal = (nickname: string) => {
         type: "command",
         content: command,
         command,
+        directory: state.currentDirectory,
       });
 
       // Execute the command and get result
@@ -186,7 +187,7 @@ export const useTerminal = (nickname: string) => {
         });
       }
     },
-    [state, addLine]
+    [state, addLine, nickname]
   );
 
   /**

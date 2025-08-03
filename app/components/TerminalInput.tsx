@@ -11,8 +11,6 @@ interface TerminalInputProps {
   onExecute: (command: string) => void;
   /** Array of previously executed commands for history navigation */
   history: string[];
-  /** Current directory name to display in the prompt */
-  currentPrompt: string;
   /** Full current directory path */
   currentDirectory: string;
   /** User's nickname */
@@ -33,7 +31,6 @@ interface TerminalInputProps {
 export default function TerminalInput({
   onExecute,
   history,
-  currentPrompt,
   currentDirectory,
   nickname,
 }: TerminalInputProps) {
@@ -102,26 +99,58 @@ export default function TerminalInput({
     inputRef.current?.focus();
   }, []);
 
+  /**
+   * Refocuses the hidden input field when clicking anywhere in the terminal line
+   * This mimics real terminal behavior where clicking anywhere brings back focus
+   */
+  const handleContainerClick = () => {
+    inputRef.current?.focus();
+  };
+
+  /**
+   * Handles key press events on the hidden input field
+   * Allows submission via Enter key
+   */
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSubmit(e as React.FormEvent);
+    }
+  };
+
   return (
-    <div className="terminal-line" suppressHydrationWarning={true}>
-      {/* Command prompt showing user and current directory */}
+    <div
+      className="terminal-line"
+      suppressHydrationWarning={true}
+      onClick={handleContainerClick}
+    >
+      {/* Command prompt showing user and directory */}
       <span className="prompt">
         <span className="username">{nickname}</span>@terminal:{currentDirectory}
         $
       </span>
+      {/* The actual command input with cursor */}
+      <span className="command">
+        {input}
+        <span className="cursor">|</span>
+      </span>
 
-      {/* Command input form */}
-      <form onSubmit={handleSubmit} className="flex-1 flex">
-        <input
-          ref={inputRef}
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          className="command flex-1 bg-transparent outline-none border-none"
-          autoFocus
-        />
-      </form>
+      {/* Hidden input field for capturing keystrokes */}
+      <input
+        ref={inputRef}
+        type="text"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onKeyPress={handleKeyPress}
+        autoFocus
+        style={{
+          position: "absolute",
+          top: "0",
+          left: "-9999px",
+          opacity: 0,
+          pointerEvents: "none",
+        }}
+      />
     </div>
   );
 }

@@ -2,13 +2,11 @@ import { TerminalLine as TerminalLineType } from "../types/terminal";
 
 /**
  * Props for the TerminalLine component
- * Contains the line data to display and optional current directory
+ * Contains the line data to display
  */
 interface TerminalLineProps {
   /** The terminal line data to render */
   line: TerminalLineType;
-  /** Current directory path (used for command line prompts) */
-  currentDirectory?: string;
   /** User's nickname */
   nickname: string;
 }
@@ -25,11 +23,7 @@ interface TerminalLineProps {
  * Each line type is styled differently to provide visual distinction
  * between user input, program output, and error messages.
  */
-export default function TerminalLine({
-  line,
-  currentDirectory,
-  nickname,
-}: TerminalLineProps) {
+export default function TerminalLine({ line, nickname }: TerminalLineProps) {
   // Render command lines with prompt
   if (line.type === "command") {
     return (
@@ -37,7 +31,7 @@ export default function TerminalLine({
         {/* Command prompt showing user and directory */}
         <span className="prompt">
           <span className="username">{nickname}</span>@terminal:
-          {currentDirectory || "~"}$
+          {line.directory || "~"}$
         </span>
         {/* The actual command that was typed */}
         <span className="command">{line.content}</span>

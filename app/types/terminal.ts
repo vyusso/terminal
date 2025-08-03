@@ -14,6 +14,8 @@ export interface TerminalLine {
   content: string;
   /** The original command that was executed (only present for command lines) */
   command?: string;
+  /** Directory path when this line was created (for command lines) */
+  directory?: string;
   /** Unix timestamp when this line was created */
   timestamp: number;
 }

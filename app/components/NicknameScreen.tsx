@@ -118,11 +118,6 @@ export default function NicknameScreen({ onNicknameSet }: NicknameScreenProps) {
     <div className="terminal-container" onClick={handleContainerClick}>
       {/* Main terminal line with prompt and command */}
       <div className="terminal-line">
-        {/* Terminal prompt (system@terminal:~$) */}
-        <span className="prompt">
-          <span className="username">system</span>@terminal:~$
-        </span>
-
         {/* Command line showing the nickname input with cursor */}
         <span className="command">
           Enter a nickname: {nickname}

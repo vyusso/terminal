@@ -46,15 +46,16 @@ export default function Home() {
   // State for user's nickname (null if not set)
   const [nickname, setNickname] = useState<string | null>(null);
 
-  // State for loading/initialization status
+  // State for loading/initialization status (used in handlePasswordCorrect)
   const [isLoading, setIsLoading] = useState(true);
 
   // State for password authentication status
   const [passwordCorrect, setPasswordCorrect] = useState(false);
 
   // Get all terminal functionality from the custom hook
-  const { lines, currentDirectory, currentPrompt, executeCommand, history } =
-    useTerminal(nickname || "user");
+  const { lines, currentDirectory, executeCommand, history } = useTerminal(
+    nickname || "user"
+  );
 
   // Reference to the terminal container for auto-scrolling
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -147,7 +148,6 @@ export default function Home() {
           <TerminalLine
             key={`${line.timestamp}-${index}`}
             line={line}
-            currentDirectory={currentDirectory}
             nickname={nickname!}
           />
         ))}
@@ -156,7 +156,6 @@ export default function Home() {
         <TerminalInput
           onExecute={executeCommand}
           history={history}
-          currentPrompt={currentPrompt}
           currentDirectory={currentDirectory}
           nickname={nickname!}
         />
