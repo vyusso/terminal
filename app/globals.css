@@ -1,6 +1,33 @@
 @import "tailwindcss";
 
 /* ========================================
+   CUSTOM CURSORS
+   ======================================== */
+
+/* Custom cursors for black and orange theme */
+* {
+  cursor: url("/cursor.svg") 2 2, auto !important;
+}
+
+/* Pointer cursor for clickable elements */
+button,
+.clickable,
+.audio-control,
+.clock {
+  cursor: url("/pointer.svg") 2 2, pointer !important;
+}
+
+/* Text cursor for terminal and text input areas */
+.terminal-container,
+.terminal-line,
+input[type="text"],
+input[type="password"],
+textarea,
+.command {
+  cursor: url("/text-cursor.svg") 1 10, text !important;
+}
+
+/* ========================================
    GLOBAL STYLES & CRT EFFECTS
    ======================================== */
 

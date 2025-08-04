@@ -1,0 +1,8 @@
+<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Main cursor body - black inside with orange border -->
+  <path d="M2 2L16 10L10 12L8 18L2 2Z" fill="#000000" stroke="#ff6b35" stroke-width="1.5"/>
+  <!-- Inner highlight -->
+  <path d="M3 3L14 9.5L9 11L7.5 16L3 3Z" fill="#1a1a1a"/>
+  <!-- Tip highlight -->
+  <path d="M2 2L4 4L2 6L2 2Z" fill="#ff6b35"/>
+</svg> 
