@@ -58,8 +58,8 @@ export default function PasswordScreen({
 
     const trimmedPassword = password.trim();
 
-    // Simple password validation (you can enhance this)
-    if (trimmedPassword === "terminal") {
+    // Simple password validation
+    if (trimmedPassword === "qwerty") {
       // Simulate API call delay
       setTimeout(() => {
         setIsLoading(false);
