@@ -227,5 +227,6 @@ export const useTerminal = (nickname: string) => {
     currentPrompt: getCurrentPrompt(), // Directory name for prompt
     executeCommand: executeCommandLine, // Function to execute commands
     history: state.history, // Command history for navigation
+    fileSystem: state.fileSystem, // File system for tab completion
   };
 };

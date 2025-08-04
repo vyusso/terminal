@@ -65,9 +65,8 @@ export default function Home() {
   // ========================================
 
   /** Get all terminal functionality from the custom hook */
-  const { lines, currentDirectory, executeCommand, history } = useTerminal(
-    nickname || "user"
-  );
+  const { lines, currentDirectory, executeCommand, history, fileSystem } =
+    useTerminal(nickname || "user");
 
   /** Reference to the terminal container for auto-scrolling */
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -161,9 +160,10 @@ export default function Home() {
         history={history}
         currentDirectory={currentDirectory}
         nickname={nickname}
+        fileSystem={fileSystem}
       />
     );
-  }, [executeCommand, history, currentDirectory, nickname]);
+  }, [executeCommand, history, currentDirectory, nickname, fileSystem]);
 
   // ========================================
   // RENDER LOGIC

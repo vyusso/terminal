@@ -54,6 +54,8 @@ export interface FileSystemNode {
   type: "file" | "directory";
   /** Array of child nodes (only for directories) */
   children?: FileSystemNode[];
+  /** File content (only for files) */
+  content?: string;
 }
 
 // ========================================

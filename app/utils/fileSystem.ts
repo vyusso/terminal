@@ -28,6 +28,7 @@ export const createFileSystem = (nickname: string): FileSystemNode => {
                   {
                     name: "readme.txt",
                     type: "file",
+                    content: "Welcome to the terminal!",
                   },
                 ],
               },
@@ -129,4 +130,79 @@ export const getNodeAtPath = (
   }
 
   return currentNode;
+};
+
+// ========================================
+// FILE OPERATIONS
+// ========================================
+
+/**
+ * Creates a file at the specified path
+ * Returns true if successful, false if file already exists
+ */
+export const createFile = (
+  fileSystem: FileSystemNode,
+  path: string,
+  fileName: string,
+  content: string
+): boolean => {
+  const parentNode = getNodeAtPath(fileSystem, path);
+  if (!parentNode || parentNode.type !== "directory") return false;
+
+  // Check if file already exists
+  const existingFile = parentNode.children?.find(
+    (child) => child.name === fileName
+  );
+  if (existingFile) return false;
+
+  // Create the file
+  const newFile: FileSystemNode = {
+    name: fileName,
+    type: "file",
+    content: content,
+  };
+
+  if (!parentNode.children) parentNode.children = [];
+  parentNode.children.push(newFile);
+
+  return true;
+};
+
+/**
+ * Updates an existing file's content
+ * Returns true if successful, false if file doesn't exist
+ */
+export const updateFile = (
+  fileSystem: FileSystemNode,
+  path: string,
+  fileName: string,
+  content: string
+): boolean => {
+  const parentNode = getNodeAtPath(fileSystem, path);
+  if (!parentNode || parentNode.type !== "directory") return false;
+
+  // Find the existing file
+  const existingFile = parentNode.children?.find(
+    (child) => child.name === fileName
+  );
+  if (!existingFile || existingFile.type !== "file") return false;
+
+  // Update the file content
+  existingFile.content = content;
+
+  return true;
+};
+
+/**
+ * Gets the content of a file at the specified path
+ * Returns null if file doesn't exist or is not a file
+ */
+export const getFileContent = (
+  fileSystem: FileSystemNode,
+  filePath: string
+): string | null => {
+  const fileNode = getNodeAtPath(fileSystem, filePath);
+  if (!fileNode || fileNode.type !== "file") return null;
+
+  return fileNode.content || "";
 };

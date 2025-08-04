@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { getNodeAtPath } from "../utils/fileSystem";
 
 /**
  * Props for the TerminalInput component
@@ -14,6 +15,8 @@ interface TerminalInputProps {
   currentDirectory: string;
   /** User's nickname */
   nickname: string;
+  /** File system for tab completion */
+  fileSystem: any;
 }
 
 /**
@@ -24,6 +27,7 @@ interface TerminalInputProps {
  * - Command history navigation (up/down arrow keys)
  * - Auto-focus on mount
  * - Focus state management for cursor display
+ * - Tab completion for file names
  *
  * The component displays a prompt showing the current user and directory,
  * followed by an input field where users can type commands.
@@ -33,6 +37,7 @@ export default function TerminalInput({
   history,
   currentDirectory,
   nickname,
+  fileSystem,
 }: TerminalInputProps) {
   // ========================================
   // STATE MANAGEMENT
@@ -46,6 +51,14 @@ export default function TerminalInput({
 
   /** Whether the input field is currently focused */
   const [isFocused, setIsFocused] = useState(false);
+
+  /** Current tab completion state */
+  const [tabCompletionState, setTabCompletionState] = useState<{
+    matches: string[];
+    currentIndex: number;
+    originalPartial: string;
+    isCycling: boolean;
+  } | null>(null);
 
   // ========================================
   // REFERENCES
@@ -68,6 +81,138 @@ export default function TerminalInput({
   }, []);
 
   // ========================================
+  // UTILITY FUNCTIONS
+  // ========================================
+
+  /**
+   * Gets all files and directories in the current directory
+   * Used for tab completion
+   */
+  const getCurrentDirectoryContents = (): string[] => {
+    // Get the current directory node from the file system
+    const currentDir = getNodeAtPath(fileSystem, currentDirectory);
+    if (!currentDir || currentDir.type !== "directory") {
+      return [];
+    }
+
+    return (currentDir.children || []).map((child: any) => child.name);
+  };
+
+  /**
+   * Gets only directories in the current directory
+   * Used for cd command tab completion
+   */
+  const getCurrentDirectories = (): string[] => {
+    const currentDir = getNodeAtPath(fileSystem, currentDirectory);
+    if (!currentDir || currentDir.type !== "directory") {
+      return [];
+    }
+
+    return (currentDir.children || [])
+      .filter((child: any) => child.type === "directory")
+      .map((child: any) => child.name);
+  };
+
+  /**
+   * Gets only files in the current directory
+   * Used for open command tab completion
+   */
+  const getCurrentFiles = (): string[] => {
+    const currentDir = getNodeAtPath(fileSystem, currentDirectory);
+    if (!currentDir || currentDir.type !== "directory") {
+      return [];
+    }
+
+    return (currentDir.children || [])
+      .filter((child: any) => child.type === "file")
+      .map((child: any) => child.name);
+  };
+
+  /**
+   * Finds files that match the partial name
+   * Used for tab completion
+   */
+  const findMatchingFiles = (partial: string): string[] => {
+    const contents = getCurrentDirectoryContents();
+    return contents.filter((name) => name.startsWith(partial));
+  };
+
+  /**
+   * Handles tab completion
+   * Finds matching files and cycles through them
+   */
+  const handleTabCompletion = () => {
+    const words = input.split(" ");
+    const currentWord = words[words.length - 1];
+    const command = words[0]?.toLowerCase();
+
+    // If we're already cycling and the current word matches our original partial
+    if (tabCompletionState && tabCompletionState.isCycling) {
+      const nextIndex =
+        (tabCompletionState.currentIndex + 1) %
+        tabCompletionState.matches.length;
+      words[words.length - 1] = tabCompletionState.matches[nextIndex];
+      setInput(words.join(" "));
+      setTabCompletionState({
+        ...tabCompletionState,
+        currentIndex: nextIndex,
+      });
+      return;
+    }
+
+    // Determine which list to use based on the command
+    let availableItems: string[] = [];
+    if (command === "cd") {
+      availableItems = getCurrentDirectories();
+    } else if (command === "open") {
+      availableItems = getCurrentFiles();
+    } else {
+      // For other commands, use all contents
+      availableItems = getCurrentDirectoryContents();
+    }
+
+    // If current word is empty, cycle through appropriate items
+    if (!currentWord || currentWord.length === 0) {
+      if (availableItems.length > 0) {
+        words[words.length - 1] = availableItems[0];
+        setInput(words.join(" "));
+        setTabCompletionState({
+          matches: availableItems,
+          currentIndex: 0,
+          originalPartial: "",
+          isCycling: true,
+        });
+      }
+      return;
+    }
+
+    // If current word has content, find matches from appropriate list
+    const matches = availableItems.filter((name) =>
+      name.startsWith(currentWord)
+    );
+
+    if (matches.length === 1) {
+      // Single match - complete it
+      words[words.length - 1] = matches[0];
+      setInput(words.join(" "));
+      setTabCompletionState(null); // Clear tab completion state
+    } else if (matches.length > 1) {
+      // Multiple matches - start cycling
+      words[words.length - 1] = matches[0];
+      setInput(words.join(" "));
+      setTabCompletionState({
+        matches,
+        currentIndex: 0,
+        originalPartial: currentWord,
+        isCycling: true,
+      });
+    } else {
+      // No matches - clear tab completion state
+      setTabCompletionState(null);
+    }
+  };
+
+  // ========================================
   // EVENT HANDLERS
   // ========================================
 
@@ -85,10 +230,11 @@ export default function TerminalInput({
   };
 
   /**
-   * Handles keyboard events for command history navigation
+   * Handles keyboard events for command history navigation and tab completion
    *
    * Arrow Up: Navigate to previous commands in history
    * Arrow Down: Navigate to more recent commands in history
+   * Tab: Complete file names
    */
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowUp") {
@@ -112,6 +258,9 @@ export default function TerminalInput({
         setHistoryIndex(-1);
         setInput("");
       }
+    } else if (e.key === "Tab") {
+      e.preventDefault();
+      handleTabCompletion();
     }
   };
 
@@ -167,7 +316,18 @@ export default function TerminalInput({
         ref={inputRef}
         type="text"
         value={input}
-        onChange={(e) => setInput(e.target.value)}
+        onChange={(e) => {
+          setInput(e.target.value);
+          // Clear tab completion state when user types something different
+          if (tabCompletionState && tabCompletionState.isCycling) {
+            const words = e.target.value.split(" ");
+            const currentWord = words[words.length - 1];
+            // If user types something that's not in our cycling list, stop cycling
+            if (!tabCompletionState.matches.includes(currentWord)) {
+              setTabCompletionState(null);
+            }
+          }
+        }}
         onKeyDown={handleKeyDown}
         onKeyPress={handleKeyPress}
         onFocus={() => setIsFocused(true)}

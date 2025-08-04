@@ -1,5 +1,12 @@
 import { CommandResult, TerminalState } from "../types/terminal";
-import { getNodeAtPath, getParentPath, isValidPath } from "./fileSystem";
+import {
+  getNodeAtPath,
+  getParentPath,
+  isValidPath,
+  createFile,
+  updateFile,
+  getFileContent,
+} from "./fileSystem";
 
 /**
  * Main command execution function
@@ -9,6 +16,8 @@ import { getNodeAtPath, getParentPath, isValidPath } from "./fileSystem";
  * - cd: Change directory
  * - ls: List directory contents
  * - mkdir: Create directory
+ * - comment: Create a text file with content
+ * - open: Read and display file contents
  * - clear: Clear terminal (handled by hook)
  * - pwd: Print working directory
  * - whoami: Show current user
@@ -30,6 +39,10 @@ export const executeCommand = (
       return executeLs(args, state);
     case "mkdir":
       return executeMkdir(args, state);
+    case "comment":
+      return executeComment(args, state, nickname);
+    case "open":
+      return executeOpen(args, state);
     case "clear":
       return { output: [] }; // Clear is handled by the hook
     case "pwd":
@@ -42,7 +55,8 @@ export const executeCommand = (
       if (cmd) {
         return {
           output: [],
-          error: `command not found: ${cmd}`,
+          error: `command not found: ${cmd}
+type "help" for a list of commands`,
         };
       }
       return { output: [] }; // Empty command
@@ -217,6 +231,91 @@ const executeMkdir = (args: string[], state: TerminalState): CommandResult => {
 };
 
 /**
+ * Handles the 'comment' command
+ * Creates a .txt file with the user's nickname and specified content
+ * If file already exists, updates its content
+ */
+const executeComment = (
+  args: string[],
+  state: TerminalState,
+  nickname: string
+): CommandResult => {
+  if (args.length === 0) {
+    return {
+      output: [],
+      error: "comment: missing content",
+    };
+  }
+
+  const content = args.join(" ");
+  const fileName = `${nickname}.txt`;
+
+  // Try to create the file first
+  let success = createFile(
+    state.fileSystem,
+    state.currentDirectory,
+    fileName,
+    content
+  );
+
+  if (success) {
+    return { output: ["file created"] };
+  } else {
+    // File already exists, try to update it
+    success = updateFile(
+      state.fileSystem,
+      state.currentDirectory,
+      fileName,
+      content
+    );
+
+    if (success) {
+      return { output: ["file updated"] };
+    } else {
+      return {
+        output: [],
+        error: `comment: cannot update file '${fileName}': File not found`,
+      };
+    }
+  }
+};
+
+/**
+ * Handles the 'open' command
+ * Reads and displays the content of a specified file
+ */
+const executeOpen = (args: string[], state: TerminalState): CommandResult => {
+  if (args.length === 0) {
+    return {
+      output: [],
+      error: "open: missing filename",
+    };
+  }
+
+  const fileName = args[0];
+  let filePath = fileName;
+
+  // If filename doesn't start with /, assume it's in current directory
+  if (!fileName.startsWith("/")) {
+    filePath =
+      state.currentDirectory === "/"
+        ? `/${fileName}`
+        : `${state.currentDirectory}/${fileName}`;
+  }
+
+  const content = getFileContent(state.fileSystem, filePath);
+
+  if (content === null) {
+    return {
+      output: [],
+      error: `open: ${fileName}: No such file`,
+    };
+  }
+
+  return { output: [content] };
+};
+
+/**
  * Handles the 'help' command
  * Shows available commands and their descriptions
  */
@@ -228,6 +327,8 @@ const executeHelp = (): CommandResult => {
     "  cd ..              Go to parent directory",
     "  ls                 List directory contents",
     "  mkdir [directory]  Create a new directory",
+    "  comment [text]     Create a text file with content",
+    "  open [filename]    Read and display file contents",
     "  pwd                Print working directory",
     "  whoami             Show current user",
     "  clear              Clear terminal screen",
