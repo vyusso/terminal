@@ -118,6 +118,9 @@ body {
   color: #eee;
   margin-left: 0;
   flex: 1;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  word-break: break-all;
 }
 
 .cursor {

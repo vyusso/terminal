@@ -60,7 +60,6 @@ export const executeCommand = (
  * - cd (no args) -> go to home directory
  * - cd ~ -> go to home directory
  * - cd .. -> go to parent directory
- * - cd - -> go to previous directory (simplified)
  * - cd /path/to/dir -> go to absolute path
  * - cd dirname -> go to relative path
  */
@@ -72,9 +71,9 @@ const executeCd = (args: string[], state: TerminalState): CommandResult => {
     return { output: [] }; // Will be handled by the hook
   }
 
-  // Handle previous directory (simplified implementation)
+  // Handle previous directory (goes to home directory)
   if (targetPath === "-") {
-    return { output: [] };
+    return { output: [] }; // Will be handled by the hook
   }
 
   // Calculate the new path
@@ -116,7 +115,6 @@ const executeCd = (args: string[], state: TerminalState): CommandResult => {
  * Supported syntax:
  * - ls (no args) -> list current directory
  * - ls /path/to/dir -> list specified directory
- * - ls -la -> list with details (simplified)
  */
 const executeLs = (args: string[], state: TerminalState): CommandResult => {
   let targetPath = state.currentDirectory;
@@ -165,12 +163,8 @@ const executeLs = (args: string[], state: TerminalState): CommandResult => {
     return a.name.localeCompare(b.name);
   });
 
-  // Format output
-  const output = sortedChildren.map((child) => {
-    const type = child.type === "directory" ? "d" : "-";
-    const name = child.name;
-    return `${type}rw-r--r-- 1 user user 4096 Jan 1 00:00 ${name}`;
-  });
+  // Format output - just return the names
+  const output = sortedChildren.map((child) => child.name);
 
   return { output };
 };
@@ -180,7 +174,6 @@ const executeLs = (args: string[], state: TerminalState): CommandResult => {
  *
  * Supported syntax:
  * - mkdir dirname -> create directory in current location
- * - mkdir /path/to/dir -> create directory at absolute path
  */
 const executeMkdir = (args: string[], state: TerminalState): CommandResult => {
   if (args.length === 0) {
@@ -232,21 +225,13 @@ const executeHelp = (): CommandResult => {
     "Available commands:",
     "",
     "  cd [directory]     Change directory",
-    "  ls [options] [dir] List directory contents",
+    "  cd ..              Go to parent directory",
+    "  ls                 List directory contents",
     "  mkdir [directory]  Create a new directory",
     "  pwd                Print working directory",
     "  whoami             Show current user",
     "  clear              Clear terminal screen",
     "  help               Show this help message",
-    "",
-    "Navigation:",
-    "  cd ~               Go to home directory",
-    "  cd ..              Go to parent directory",
-    "  cd -               Go to previous directory",
-    "",
-    "File operations:",
-    "  ls -la             List with details",
-    "  mkdir mydir        Create directory 'mydir'",
   ];
 
   return { output: helpText };
