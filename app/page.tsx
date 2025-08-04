@@ -54,9 +54,6 @@ export default function Home() {
   /** User's nickname (null if not set) */
   const [nickname, setNickname] = useState<string | null>(null);
 
-  /** Loading/initialization status */
-  const [isLoading, setIsLoading] = useState(true);
-
   /** Password authentication status */
   const [passwordCorrect, setPasswordCorrect] = useState(false);
 
@@ -114,7 +111,6 @@ export default function Home() {
       const savedNickname = localStorage.getItem("terminal_nickname");
       if (savedNickname) {
         setNickname(savedNickname);
-        setIsLoading(false);
         return;
       }
 
@@ -126,15 +122,11 @@ export default function Home() {
         // User has existing nickname in database - save to localStorage and proceed
         localStorage.setItem("terminal_nickname", data.nickname);
         setNickname(data.nickname);
-        setIsLoading(false);
-      } else {
-        // No nickname exists - show nickname screen
-        setIsLoading(false);
       }
+      // If no nickname exists, the component will show the nickname screen
     } catch (error) {
       console.error("Error checking nickname:", error);
       // Fallback to showing nickname screen
-      setIsLoading(false);
     }
   };
 
@@ -144,7 +136,6 @@ export default function Home() {
    */
   const handleNicknameSet = (newNickname: string) => {
     setNickname(newNickname);
-    setIsLoading(false);
   };
 
   // ========================================

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { getNodeAtPath } from "../utils/fileSystem";
+import { FileSystemNode } from "../types/terminal";
 
 /**
  * Props for the TerminalInput component
@@ -16,7 +17,7 @@ interface TerminalInputProps {
   /** User's nickname */
   nickname: string;
   /** File system for tab completion */
-  fileSystem: any;
+  fileSystem: FileSystemNode;
 }
 
 /**
@@ -95,7 +96,9 @@ export default function TerminalInput({
       return [];
     }
 
-    return (currentDir.children || []).map((child: any) => child.name);
+    return (currentDir.children || []).map(
+      (child: FileSystemNode) => child.name
+    );
   };
 
   /**
@@ -109,8 +112,8 @@ export default function TerminalInput({
     }
 
     return (currentDir.children || [])
-      .filter((child: any) => child.type === "directory")
-      .map((child: any) => child.name);
+      .filter((child: FileSystemNode) => child.type === "directory")
+      .map((child: FileSystemNode) => child.name);
   };
 
   /**
@@ -124,17 +127,8 @@ export default function TerminalInput({
     }
 
     return (currentDir.children || [])
-      .filter((child: any) => child.type === "file")
-      .map((child: any) => child.name);
-  };
-
-  /**
-   * Finds files that match the partial name
-   * Used for tab completion
-   */
-  const findMatchingFiles = (partial: string): string[] => {
-    const contents = getCurrentDirectoryContents();
-    return contents.filter((name) => name.startsWith(partial));
+      .filter((child: FileSystemNode) => child.type === "file")
+      .map((child: FileSystemNode) => child.name);
   };
 
   /**
