@@ -21,12 +21,16 @@ import { executeCommand } from "../utils/commands";
  * - Terminal clearing
  */
 export const useTerminal = (nickname: string) => {
+  // ========================================
+  // STATE MANAGEMENT
+  // ========================================
+
   /**
    * Main terminal state containing:
    * - currentDirectory: Current working directory path
    * - fileSystem: Virtual file system structure
    * - history: Array of previously executed commands
-   * - historyIndex: Current position in command history
+   * - historyIndex: Index in the history array for navigation (used with arrow keys)
    */
   const [state, setState] = useState<TerminalState>({
     currentDirectory: `/home/${nickname}`, // Start in user's home directory
@@ -35,13 +39,17 @@ export const useTerminal = (nickname: string) => {
     historyIndex: -1, // No history position initially
   });
 
-  /**
-   * Array of terminal lines (commands, outputs, errors)
-   * Each line represents something displayed in the terminal
-   */
+  /** Array of terminal lines (commands, outputs, errors) */
   const [lines, setLines] = useState<TerminalLine[]>([]);
 
-  // Update terminal state when nickname changes
+  // ========================================
+  // EFFECTS
+  // ========================================
+
+  /**
+   * Update terminal state when nickname changes
+   * Resets the terminal to initial state for the new user
+   */
   useEffect(() => {
     setState({
       currentDirectory: `/home/${nickname}`, // Start in user's home directory
@@ -52,21 +60,40 @@ export const useTerminal = (nickname: string) => {
     setLines([]); // Clear terminal lines when nickname changes
   }, [nickname]);
 
+  // ========================================
+  // UTILITY FUNCTIONS
+  // ========================================
+
   /**
    * Adds a new line to the terminal output
    * Automatically adds a timestamp to each line
-   *
-   * @param line - The line to add (without timestamp)
    */
   const addLine = useCallback((line: Omit<TerminalLine, "timestamp">) => {
     setLines((prev) => [...prev, { ...line, timestamp: Date.now() }]);
   }, []);
 
   /**
+   * Gets the current directory name for display in the prompt
+   * Extracts just the directory name from the full path
+   *
+   * Examples:
+   * "/home/user" -> "user"
+   * "/home/user/Documents" -> "Documents"
+   * "/" -> "/"
+   */
+  const getCurrentPrompt = useCallback(() => {
+    const parts = state.currentDirectory.split("/").filter(Boolean);
+    const currentDir = parts.length === 0 ? "/" : parts[parts.length - 1];
+    return currentDir;
+  }, [state.currentDirectory]);
+
+  // ========================================
+  // COMMAND EXECUTION
+  // ========================================
+
+  /**
    * Main command execution function
    * Handles command parsing, execution, and state updates
-   *
-   * @param command - The command string to execute
    */
   const executeCommandLine = useCallback(
     (command: string) => {
@@ -190,24 +217,10 @@ export const useTerminal = (nickname: string) => {
     [state, addLine, nickname]
   );
 
-  /**
-   * Gets the current directory name for display in the prompt
-   * Extracts just the directory name from the full path
-   *
-   * @returns The name of the current directory
-   *
-   * Examples:
-   * "/home/user" -> "user"
-   * "/home/user/Documents" -> "Documents"
-   * "/" -> "/"
-   */
-  const getCurrentPrompt = useCallback(() => {
-    const parts = state.currentDirectory.split("/").filter(Boolean);
-    const currentDir = parts.length === 0 ? "/" : parts[parts.length - 1];
-    return currentDir;
-  }, [state.currentDirectory]);
+  // ========================================
+  // RETURN PUBLIC INTERFACE
+  // ========================================
 
-  // Return the public interface of the hook
   return {
     lines, // All terminal lines for display
     currentDirectory: state.currentDirectory, // Current working directory

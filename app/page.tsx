@@ -7,7 +7,11 @@ import AsciiArt from "./components/AsciiArt";
 import PasswordScreen from "./components/PasswordScreen";
 import NicknameScreen from "./components/NicknameScreen";
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
+
+// ========================================
+// DYNAMIC IMPORTS (No SSR to prevent hydration issues)
+// ========================================
 
 // Dynamically import Clock component with no SSR to prevent hydration issues
 const Clock = dynamic(() => import("./components/Clock"), {
@@ -43,32 +47,61 @@ const AudioPlayer = dynamic(() => import("./components/AudioPlayer"), {
  * - Persistent user sessions
  */
 export default function Home() {
-  // State for user's nickname (null if not set)
+  // ========================================
+  // STATE MANAGEMENT
+  // ========================================
+
+  /** User's nickname (null if not set) */
   const [nickname, setNickname] = useState<string | null>(null);
 
-  // State for loading/initialization status (used in handlePasswordCorrect)
+  /** Loading/initialization status */
   const [isLoading, setIsLoading] = useState(true);
 
-  // State for password authentication status
+  /** Password authentication status */
   const [passwordCorrect, setPasswordCorrect] = useState(false);
 
-  // Get all terminal functionality from the custom hook
+  // ========================================
+  // HOOKS & REFERENCES
+  // ========================================
+
+  /** Get all terminal functionality from the custom hook */
   const { lines, currentDirectory, executeCommand, history } = useTerminal(
     nickname || "user"
   );
 
-  // Reference to the terminal container for auto-scrolling
+  /** Reference to the terminal container for auto-scrolling */
   const terminalRef = useRef<HTMLDivElement>(null);
 
+  // ========================================
+  // EFFECTS
+  // ========================================
+
   /**
-   * Auto-scroll to the bottom whenever new lines are added
-   * This ensures users always see the latest output
+   * Auto-scroll to keep terminal at bottom when new output is added
+   * Only scroll when there are new output lines, not when user is typing
    */
   useEffect(() => {
-    if (terminalRef.current) {
-      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+    if (terminalRef.current && lines.length > 0) {
+      // Check if any of the recent lines are output or error
+      const recentLines = lines.slice(-3); // Check last 3 lines
+      const hasNewOutput = recentLines.some(
+        (line) => line.type === "output" || line.type === "error"
+      );
+
+      if (hasNewOutput) {
+        // Use requestAnimationFrame to ensure DOM is updated
+        requestAnimationFrame(() => {
+          if (terminalRef.current) {
+            terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+          }
+        });
+      }
     }
   }, [lines]);
+
+  // ========================================
+  // EVENT HANDLERS
+  // ========================================
 
   /**
    * Handles successful password authentication
@@ -115,6 +148,27 @@ export default function Home() {
     setIsLoading(false);
   };
 
+  // ========================================
+  // MEMOIZED COMPONENTS
+  // ========================================
+
+  /** Memoize the TerminalInput component to prevent unnecessary re-renders */
+  const memoizedTerminalInput = useMemo(() => {
+    if (!nickname) return null;
+    return (
+      <TerminalInput
+        onExecute={executeCommand}
+        history={history}
+        currentDirectory={currentDirectory}
+        nickname={nickname}
+      />
+    );
+  }, [executeCommand, history, currentDirectory, nickname]);
+
+  // ========================================
+  // RENDER LOGIC
+  // ========================================
+
   // Step 1: Show password screen first (always required)
   if (!passwordCorrect) {
     return <PasswordScreen onPasswordCorrect={handlePasswordCorrect} />;
@@ -139,6 +193,15 @@ export default function Home() {
         ref={terminalRef}
         className="terminal-container"
         suppressHydrationWarning={true}
+        onClick={() => {
+          // Focus the hidden input when clicking anywhere in the terminal
+          const input = document.querySelector(
+            'input[type="text"]'
+          ) as HTMLInputElement;
+          if (input) {
+            input.focus();
+          }
+        }}
       >
         {/* ASCII Art at the top */}
         <AsciiArt />
@@ -153,12 +216,7 @@ export default function Home() {
         ))}
 
         {/* Command input component at the bottom */}
-        <TerminalInput
-          onExecute={executeCommand}
-          history={history}
-          currentDirectory={currentDirectory}
-          nickname={nickname!}
-        />
+        {memoizedTerminalInput}
       </div>
     </>
   );

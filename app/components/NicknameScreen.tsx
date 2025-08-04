@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 
+/**
+ * Props for the NicknameScreen component
+ */
 interface NicknameScreenProps {
+  /** Callback function when nickname is successfully set */
   onNicknameSet: (nickname: string) => void;
 }
 
@@ -22,14 +26,25 @@ interface NicknameScreenProps {
  * - Error handling and loading states
  */
 export default function NicknameScreen({ onNicknameSet }: NicknameScreenProps) {
-  // State for nickname input value
+  // ========================================
+  // STATE MANAGEMENT
+  // ========================================
+
+  /** Current nickname input value */
   const [nickname, setNickname] = useState("");
 
-  // State for displaying validation errors
+  /** Validation error message */
   const [error, setError] = useState("");
 
-  // State for showing loading/saving status
+  /** Loading state during nickname submission */
   const [isLoading, setIsLoading] = useState(false);
+
+  /** Whether the input field is currently focused */
+  const [isFocused, setIsFocused] = useState(false);
+
+  // ========================================
+  // EVENT HANDLERS
+  // ========================================
 
   /**
    * Handles nickname submission and validation
@@ -111,8 +126,13 @@ export default function NicknameScreen({ onNicknameSet }: NicknameScreenProps) {
     ) as HTMLInputElement;
     if (input) {
       input.focus();
+      setIsFocused(true);
     }
   };
+
+  // ========================================
+  // RENDER
+  // ========================================
 
   return (
     <div className="terminal-container" onClick={handleContainerClick}>
@@ -121,7 +141,7 @@ export default function NicknameScreen({ onNicknameSet }: NicknameScreenProps) {
         {/* Command line showing the nickname input with cursor */}
         <span className="command">
           Enter a nickname: {nickname}
-          <span className="cursor">|</span>
+          {isFocused && <span className="cursor">|</span>}
         </span>
       </div>
 
@@ -145,6 +165,8 @@ export default function NicknameScreen({ onNicknameSet }: NicknameScreenProps) {
         value={nickname}
         onChange={(e) => setNickname(e.target.value)}
         onKeyPress={handleKeyPress}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
         autoFocus
         disabled={isLoading}
         style={{

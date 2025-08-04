@@ -19,6 +19,13 @@ html {
   animation-name: textflicker;
   animation-iteration-count: infinite;
   animation-direction: alternate;
+  height: 100%;
+}
+
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 /* CRT Effect - Only applied when .crt-enabled class is present */
@@ -238,7 +245,7 @@ input.command::placeholder {
 /* Terminal container - main scrolling area for terminal output */
 .terminal-container {
   width: clamp(300px, 50vw, 800px);
-  height: 100%;
+  height: 100vh;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 4px 0px 4px 0px;
@@ -248,12 +255,16 @@ input.command::placeholder {
   /* Add extra padding when CRT is disabled */
   padding-top: 20px;
   padding-left: 20px;
+  position: relative;
+  z-index: 1;
 }
 
 /* Remove extra padding when CRT effect is enabled */
 .crt-enabled .terminal-container {
   padding-top: 4px;
   padding-left: 10px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* Hide scrollbar for webkit browsers */
@@ -264,6 +275,11 @@ input.command::placeholder {
 /* Hide scrollbar for Firefox */
 .terminal-container {
   scrollbar-width: none;
+}
+
+/* Prevent scroll behavior when focusing elements */
+.terminal-container * {
+  scroll-behavior: auto;
 }
 
 @keyframes blink {

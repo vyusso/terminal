@@ -2,60 +2,81 @@
 
 import { useState } from "react";
 
+/**
+ * Props for the PasswordScreen component
+ */
 interface PasswordScreenProps {
+  /** Callback function when password is correct */
   onPasswordCorrect: () => void;
 }
 
 /**
  * PasswordScreen Component
  *
- * First screen users see when loading the app.
- * Requires correct password to proceed to the next step.
+ * CLI-style password authentication screen.
+ * Always shown first before nickname setup.
  *
  * Features:
- * - Password validation (hardcoded to "qwerty")
- * - Error handling for incorrect passwords
- * - Loading state during authentication
- * - Auto-focus on input field
- * - Enter key submission
+ * - Terminal-style interface with prompt and cursor
+ * - Real-time typing display in command line
+ * - Hidden input field for capturing keystrokes
+ * - Click-to-refocus functionality
+ * - Password validation
+ * - Error handling and loading states
  */
 export default function PasswordScreen({
   onPasswordCorrect,
 }: PasswordScreenProps) {
-  // State for password input value
+  // ========================================
+  // STATE MANAGEMENT
+  // ========================================
+
+  /** Current password input value */
   const [password, setPassword] = useState("");
 
-  // State for displaying error messages
+  /** Validation error message */
   const [error, setError] = useState("");
 
-  // State for showing loading/authenticating status
+  /** Loading state during password verification */
   const [isLoading, setIsLoading] = useState(false);
 
+  /** Whether the input field is currently focused */
+  const [isFocused, setIsFocused] = useState(false);
+
+  // ========================================
+  // EVENT HANDLERS
+  // ========================================
+
   /**
-   * Handles form submission when user presses Enter
-   * Validates password and triggers appropriate callbacks
+   * Handles password submission and validation
+   * Verifies password and proceeds to next screen
    */
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
 
-    // Simulate a brief delay for better UX (feels more realistic)
-    setTimeout(() => {
-      if (password === "qwerty") {
-        // Password is correct - proceed to next step
+    const trimmedPassword = password.trim();
+
+    // Simple password validation (you can enhance this)
+    if (trimmedPassword === "terminal") {
+      // Simulate API call delay
+      setTimeout(() => {
+        setIsLoading(false);
         onPasswordCorrect();
-      } else {
-        // Password is incorrect - show error and clear input
-        setError("Incorrect password");
+      }, 500);
+    } else {
+      // Simulate API call delay for error
+      setTimeout(() => {
+        setError("Incorrect password. Please try again.");
+        setIsLoading(false);
         setPassword("");
-      }
-      setIsLoading(false);
-    }, 300);
+      }, 500);
+    }
   };
 
   /**
-   * Handles key press events on the password input
+   * Handles key press events on the hidden input field
    * Allows submission via Enter key
    */
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -64,65 +85,68 @@ export default function PasswordScreen({
     }
   };
 
+  /**
+   * Refocuses the hidden input field when clicking anywhere in the terminal
+   * This mimics real terminal behavior where clicking anywhere brings back focus
+   */
+  const handleContainerClick = () => {
+    // Find and refocus the hidden input field
+    const input = document.querySelector(
+      'input[type="password"]'
+    ) as HTMLInputElement;
+    if (input) {
+      input.focus();
+      setIsFocused(true);
+    }
+  };
+
+  // ========================================
+  // RENDER
+  // ========================================
+
   return (
-    <div className="landing-page">
-      <div className="landing-content">
-        {/* Terminal title */}
-        <h1 className="landing-title">TERMINAL</h1>
-
-        {/* Password input form */}
-        <form onSubmit={handleSubmit} className="password-form">
-          {/* Password prompt with input field */}
-          <div className="password-prompt">
-            <span className="prompt-text">Enter password:</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyPress={handleKeyPress}
-              className="password-input"
-              placeholder=""
-              autoFocus
-              disabled={isLoading}
-            />
-          </div>
-
-          {/* Error message display */}
-          {error && (
-            <div
-              className="error-message"
-              style={{
-                position: "absolute",
-                top: "100%",
-                left: "50%",
-                transform: "translateX(-50%)",
-                width: "300px",
-                textAlign: "center",
-              }}
-            >
-              {error}
-            </div>
-          )}
-
-          {/* Loading state display */}
-          {isLoading && (
-            <div
-              className="loading-text"
-              style={{
-                position: "absolute",
-                top: "100%",
-                left: "50%",
-                transform: "translateX(-50%)",
-                width: "300px",
-                textAlign: "center",
-                marginTop: "10px",
-              }}
-            >
-              Authenticating...
-            </div>
-          )}
-        </form>
+    <div className="terminal-container" onClick={handleContainerClick}>
+      {/* Main terminal line with prompt and command */}
+      <div className="terminal-line">
+        {/* Command line showing the password input with cursor */}
+        <span className="command">
+          Enter password: {password.replace(/./g, "*")}
+          {isFocused && <span className="cursor">|</span>}
+        </span>
       </div>
+
+      {/* Error message displayed as terminal output */}
+      {error && (
+        <div className="terminal-line">
+          <span className="output error">{error}</span>
+        </div>
+      )}
+
+      {/* Loading message displayed as terminal output */}
+      {isLoading && (
+        <div className="terminal-line">
+          <span className="output">Verifying password...</span>
+        </div>
+      )}
+
+      {/* Hidden input field for capturing keystrokes */}
+      <input
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        onKeyPress={handleKeyPress}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        autoFocus
+        disabled={isLoading}
+        style={{
+          position: "absolute",
+          top: "0",
+          left: "-9999px",
+          opacity: 0,
+          pointerEvents: "none",
+        }}
+      />
     </div>
   );
 }

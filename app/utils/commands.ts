@@ -5,11 +5,6 @@ import { getNodeAtPath, getParentPath, isValidPath } from "./fileSystem";
  * Main command execution function
  * Parses the command string and routes to the appropriate command handler
  *
- * @param command - The full command string (e.g., "ls -la")
- * @param state - Current terminal state
- * @param nickname - Current user's nickname
- * @returns CommandResult with output or error
- *
  * Supported commands:
  * - cd: Change directory
  * - ls: List directory contents
@@ -54,12 +49,12 @@ export const executeCommand = (
   }
 };
 
+// ========================================
+// COMMAND HANDLERS
+// ========================================
+
 /**
  * Handles the 'cd' (change directory) command
- *
- * @param args - Command arguments (target directory)
- * @param state - Current terminal state
- * @returns CommandResult (empty output if successful, error if failed)
  *
  * Supported syntax:
  * - cd (no args) -> go to home directory
@@ -103,104 +98,91 @@ const executeCd = (args: string[], state: TerminalState): CommandResult => {
     };
   }
 
-  // Check if the target exists in the file system
+  // Check if the target directory exists
   const targetNode = getNodeAtPath(state.fileSystem, newPath);
-  if (!targetNode) {
+  if (!targetNode || targetNode.type !== "directory") {
     return {
       output: [],
       error: `cd: ${targetPath}: No such file or directory`,
     };
   }
 
-  // Ensure the target is a directory
-  if (targetNode.type !== "directory") {
-    return {
-      output: [],
-      error: `cd: ${targetPath}: Not a directory`,
-    };
-  }
-
-  return { output: [] }; // Success - actual directory change handled by hook
+  return { output: [] }; // Success - will be handled by the hook
 };
 
 /**
- * Handles the 'ls' (list) command
+ * Handles the 'ls' (list directory contents) command
  *
- * @param args - Command arguments (optional target directory)
- * @param state - Current terminal state
- * @returns CommandResult with list of files/directories
- *
- * Usage:
- * - ls -> list current directory
+ * Supported syntax:
+ * - ls (no args) -> list current directory
  * - ls /path/to/dir -> list specified directory
- * - ls dirname -> list relative directory
+ * - ls -la -> list with details (simplified)
  */
 const executeLs = (args: string[], state: TerminalState): CommandResult => {
-  // Use current directory if no target specified
-  const targetPath = args[0] || state.currentDirectory;
+  let targetPath = state.currentDirectory;
 
-  // Resolve relative paths to absolute paths
-  let pathToCheck = targetPath;
-  if (!targetPath.startsWith("/")) {
-    pathToCheck =
-      state.currentDirectory === "/"
-        ? `/${targetPath}`
-        : `${state.currentDirectory}/${targetPath}`;
+  // Parse arguments
+  if (args.length > 0 && !args[0].startsWith("-")) {
+    // First argument is a path
+    targetPath = args[0];
   }
 
-  // Validate path syntax
-  if (!isValidPath(pathToCheck)) {
+  // Validate the path
+  if (!isValidPath(targetPath)) {
     return {
       output: [],
-      error: `ls: cannot access '${targetPath}': No such file or directory`,
+      error: `ls: ${targetPath}: No such file or directory`,
     };
   }
 
-  // Get the target node from file system
-  const targetNode = getNodeAtPath(state.fileSystem, pathToCheck);
+  // Get the target directory
+  const targetNode = getNodeAtPath(state.fileSystem, targetPath);
   if (!targetNode) {
     return {
       output: [],
-      error: `ls: cannot access '${targetPath}': No such file or directory`,
+      error: `ls: ${targetPath}: No such file or directory`,
     };
   }
 
-  // Handle file listing (just return the filename)
-  if (targetNode.type === "file") {
-    return { output: [targetNode.name] };
+  if (targetNode.type !== "directory") {
+    return {
+      output: [],
+      error: `ls: ${targetPath}: Not a directory`,
+    };
   }
 
-  // Handle directory listing
-  if (targetNode.type === "directory") {
-    const children = targetNode.children || [];
-    if (children.length === 0) {
-      return { output: [] }; // Empty directory
+  // List directory contents
+  const children = targetNode.children || [];
+  if (children.length === 0) {
+    return { output: [] }; // Empty directory
+  }
+
+  // Sort children: directories first, then files, both alphabetically
+  const sortedChildren = children.sort((a, b) => {
+    if (a.type !== b.type) {
+      return a.type === "directory" ? -1 : 1;
     }
+    return a.name.localeCompare(b.name);
+  });
 
-    // Return names of all children
-    const names = children.map((child) => child.name);
-    return { output: names };
-  }
+  // Format output
+  const output = sortedChildren.map((child) => {
+    const type = child.type === "directory" ? "d" : "-";
+    const name = child.name;
+    return `${type}rw-r--r-- 1 user user 4096 Jan 1 00:00 ${name}`;
+  });
 
-  return { output: [] };
+  return { output };
 };
 
 /**
  * Handles the 'mkdir' (make directory) command
  *
- * @param args - Command arguments (directory name)
- * @param state - Current terminal state
- * @returns CommandResult (empty output if successful, error if failed)
- *
- * Usage:
- * - mkdir dirname -> create directory with specified name
- *
- * Validation:
- * - Directory name must contain only alphanumeric characters, dots, underscores, and hyphens
- * - Directory must not already exist
+ * Supported syntax:
+ * - mkdir dirname -> create directory in current location
+ * - mkdir /path/to/dir -> create directory at absolute path
  */
 const executeMkdir = (args: string[], state: TerminalState): CommandResult => {
-  // Check if directory name was provided
   if (args.length === 0) {
     return {
       output: [],
@@ -210,66 +192,61 @@ const executeMkdir = (args: string[], state: TerminalState): CommandResult => {
 
   const dirName = args[0];
 
-  // Validate directory name format (alphanumeric, dots, underscores, hyphens only)
-  if (!dirName.match(/^[a-zA-Z0-9._-]+$/)) {
+  // Validate directory name
+  if (!dirName || dirName.includes("/")) {
     return {
       output: [],
-      error: `mkdir: cannot create directory '${dirName}': Invalid name`,
-    };
-  }
-
-  // Get the current directory node
-  const currentDir = getNodeAtPath(state.fileSystem, state.currentDirectory);
-  if (!currentDir || currentDir.type !== "directory") {
-    return {
-      output: [],
-      error: "mkdir: current directory not found",
+      error: `mkdir: cannot create directory '${dirName}': Invalid argument`,
     };
   }
 
   // Check if directory already exists
-  const existingChild = currentDir.children?.find(
-    (child) => child.name === dirName
-  );
-  if (existingChild) {
+  const currentDir = getNodeAtPath(state.fileSystem, state.currentDirectory);
+  if (!currentDir || currentDir.type !== "directory") {
     return {
       output: [],
-      error: `mkdir: cannot create directory '${dirName}': Directory already exists`,
+      error: `mkdir: cannot create directory '${dirName}': No such file or directory`,
     };
   }
 
-  // Directory creation will be handled by the hook
-  return { output: [] };
+  const existingChild = currentDir.children?.find(
+    (child) => child.name === dirName
+  );
+
+  if (existingChild) {
+    return {
+      output: [],
+      error: `mkdir: cannot create directory '${dirName}': File exists`,
+    };
+  }
+
+  return { output: [] }; // Success - will be handled by the hook
 };
 
 /**
  * Handles the 'help' command
- * Displays all available commands with their descriptions
- *
- * @returns CommandResult with help information
+ * Shows available commands and their descriptions
  */
 const executeHelp = (): CommandResult => {
   const helpText = [
     "Available commands:",
     "",
-    "  cd [directory]     - Change directory",
-    "                      Examples: cd, cd ~, cd .., cd Documents",
+    "  cd [directory]     Change directory",
+    "  ls [options] [dir] List directory contents",
+    "  mkdir [directory]  Create a new directory",
+    "  pwd                Print working directory",
+    "  whoami             Show current user",
+    "  clear              Clear terminal screen",
+    "  help               Show this help message",
     "",
-    "  ls [directory]     - List directory contents",
-    "                      Examples: ls, ls /home/user",
+    "Navigation:",
+    "  cd ~               Go to home directory",
+    "  cd ..              Go to parent directory",
+    "  cd -               Go to previous directory",
     "",
-    "  mkdir <name>       - Create a new directory",
-    "                      Example: mkdir myfolder",
-    "",
-    "  pwd                - Print current working directory",
-    "",
-    "  whoami             - Display current user nickname",
-    "",
-    "  clear              - Clear terminal screen",
-    "",
-    "  help               - Show this help message",
-    "",
-    "Note: Directory names can contain letters, numbers, dots, underscores, and hyphens.",
+    "File operations:",
+    "  ls -la             List with details",
+    "  mkdir mydir        Create directory 'mydir'",
   ];
 
   return { output: helpText };

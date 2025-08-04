@@ -3,6 +3,10 @@
  * This file defines all the interfaces and types used throughout the terminal system
  */
 
+// ========================================
+// CORE TERMINAL TYPES
+// ========================================
+
 /**
  * Represents a single line in the terminal output
  * Each line can be a command, output, or error message
@@ -21,19 +25,6 @@ export interface TerminalLine {
 }
 
 /**
- * Represents a node in the virtual file system
- * Can be either a file or directory
- */
-export interface FileSystemNode {
-  /** Name of the file or directory */
-  name: string;
-  /** Type: either "file" or "directory" */
-  type: "file" | "directory";
-  /** Array of child nodes (only for directories) */
-  children?: FileSystemNode[];
-}
-
-/**
  * Represents the current state of the terminal
  * Contains all the data needed to maintain terminal functionality
  */
@@ -47,6 +38,27 @@ export interface TerminalState {
   /** Index in the history array for navigation (used with arrow keys) */
   historyIndex: number;
 }
+
+// ========================================
+// FILE SYSTEM TYPES
+// ========================================
+
+/**
+ * Represents a node in the virtual file system
+ * Can be either a file or directory
+ */
+export interface FileSystemNode {
+  /** Name of the file or directory */
+  name: string;
+  /** Type: either "file" or "directory" */
+  type: "file" | "directory";
+  /** Array of child nodes (only for directories) */
+  children?: FileSystemNode[];
+}
+
+// ========================================
+// COMMAND EXECUTION TYPES
+// ========================================
 
 /**
  * Result of executing a command

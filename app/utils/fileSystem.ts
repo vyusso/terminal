@@ -1,121 +1,132 @@
 import { FileSystemNode } from "../types/terminal";
 
-/**
- * Creates a virtual file system with a basic directory structure
- * This simulates a Unix-like file system with common directories
- *
- * Structure:
- * /
- * ├── home/
- * │   └── [nickname]/
- * │       ├── Documents/
- * │       ├── Downloads/
- * │       ├── Desktop/
- * │       └── readme.txt
- * ├── bin/
- * ├── etc/
- * └── var/
- */
-export const createFileSystem = (nickname: string): FileSystemNode => ({
-  name: "/",
-  type: "directory",
-  children: [
-    {
-      name: "home",
-      type: "directory",
-      children: [
-        {
-          name: nickname,
-          type: "directory",
-          children: [
-            { name: "Documents", type: "directory", children: [] },
-            { name: "Downloads", type: "directory", children: [] },
-            { name: "Desktop", type: "directory", children: [] },
-            { name: "readme.txt", type: "file" },
-          ],
-        },
-      ],
-    },
-    { name: "bin", type: "directory", children: [] },
-    { name: "etc", type: "directory", children: [] },
-    { name: "var", type: "directory", children: [] },
-  ],
-});
+// ========================================
+// FILE SYSTEM CREATION
+// ========================================
 
 /**
- * Navigates to a specific node in the file system using a path
- *
- * @param fileSystem - The root of the file system tree
- * @param path - The path to navigate to (e.g., "/home/user/Documents")
- * @returns The node at the specified path, or null if path doesn't exist
- *
- * Example:
- * getNodeAtPath(fileSystem, "/home/user") -> returns the user directory node
+ * Creates a virtual file system for a user
+ * Initializes with a home directory structure
+ */
+export const createFileSystem = (nickname: string): FileSystemNode => {
+  return {
+    name: "/",
+    type: "directory",
+    children: [
+      {
+        name: "home",
+        type: "directory",
+        children: [
+          {
+            name: nickname,
+            type: "directory",
+            children: [
+              {
+                name: "Documents",
+                type: "directory",
+                children: [
+                  {
+                    name: "readme.txt",
+                    type: "file",
+                  },
+                ],
+              },
+              {
+                name: "Downloads",
+                type: "directory",
+                children: [],
+              },
+              {
+                name: "Desktop",
+                type: "directory",
+                children: [],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        name: "bin",
+        type: "directory",
+        children: [],
+      },
+      {
+        name: "etc",
+        type: "directory",
+        children: [],
+      },
+      {
+        name: "tmp",
+        type: "directory",
+        children: [],
+      },
+    ],
+  };
+};
+
+// ========================================
+// PATH UTILITIES
+// ========================================
+
+/**
+ * Gets the parent path of a given path
+ * Handles edge cases like root directory
+ */
+export const getParentPath = (path: string): string => {
+  if (path === "/") return "/";
+
+  const parts = path.split("/").filter(Boolean);
+  if (parts.length === 0) return "/";
+
+  return "/" + parts.slice(0, -1).join("/");
+};
+
+/**
+ * Validates if a path has correct syntax
+ * Checks for valid characters and structure
+ */
+export const isValidPath = (path: string): boolean => {
+  // Must start with /
+  if (!path.startsWith("/")) return false;
+
+  // Check for invalid characters
+  if (path.includes("//") || path.includes("\\")) return false;
+
+  // Check for invalid path components
+  const parts = path.split("/").filter(Boolean);
+  for (const part of parts) {
+    if (part === "." || part === "..") return false;
+    if (part.length === 0) return false;
+  }
+
+  return true;
+};
+
+// ========================================
+// NODE NAVIGATION
+// ========================================
+
+/**
+ * Gets a node at a specific path in the file system
+ * Returns null if the path doesn't exist
  */
 export const getNodeAtPath = (
   fileSystem: FileSystemNode,
   path: string
 ): FileSystemNode | null => {
-  // Root directory is a special case
   if (path === "/") return fileSystem;
 
-  // Split path into parts and filter out empty strings
   const parts = path.split("/").filter(Boolean);
-  let current = fileSystem;
+  let currentNode: FileSystemNode = fileSystem;
 
-  // Navigate through each part of the path
   for (const part of parts) {
-    const child = current.children?.find((node) => node.name === part);
-    if (!child) return null; // Path doesn't exist
-    current = child;
+    if (currentNode.type !== "directory") return null;
+
+    const child = currentNode.children?.find((node) => node.name === part);
+    if (!child) return null;
+
+    currentNode = child;
   }
 
-  return current;
-};
-
-/**
- * Gets the parent directory path of a given path
- *
- * @param path - The current path
- * @returns The parent directory path
- *
- * Examples:
- * getParentPath("/home/user/Documents") -> "/home/user"
- * getParentPath("/home/user") -> "/home"
- * getParentPath("/home") -> "/"
- */
-export const getParentPath = (path: string): string => {
-  const parts = path.split("/").filter(Boolean);
-  parts.pop(); // Remove the last part (current directory)
-  return parts.length === 0 ? "/" : "/" + parts.join("/");
-};
-
-/**
- * Extracts the name of the current directory from a full path
- *
- * @param path - The full path
- * @returns Just the name of the current directory
- *
- * Examples:
- * getCurrentDirectoryName("/home/user/Documents") -> "Documents"
- * getCurrentDirectoryName("/home/user") -> "user"
- * getCurrentDirectoryName("/") -> "/"
- */
-export const getCurrentDirectoryName = (path: string): string => {
-  const parts = path.split("/").filter(Boolean);
-  return parts.length === 0 ? "/" : parts[parts.length - 1];
-};
-
-/**
- * Validates if a path is syntactically correct
- *
- * @param path - The path to validate
- * @returns true if the path is valid, false otherwise
- *
- * Rules:
- * - Must start with "/" (absolute path)
- * - Cannot contain ".." (for security reasons)
- */
-export const isValidPath = (path: string): boolean => {
-  return path.startsWith("/") && !path.includes("..");
+  return currentNode;
 };

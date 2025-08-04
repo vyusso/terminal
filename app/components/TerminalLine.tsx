@@ -2,7 +2,6 @@ import { TerminalLine as TerminalLineType } from "../types/terminal";
 
 /**
  * Props for the TerminalLine component
- * Contains the line data to display
  */
 interface TerminalLineProps {
   /** The terminal line data to render */
@@ -24,17 +23,19 @@ interface TerminalLineProps {
  * between user input, program output, and error messages.
  */
 export default function TerminalLine({ line, nickname }: TerminalLineProps) {
+  // ========================================
+  // RENDER LOGIC
+  // ========================================
+
   // Render command lines with prompt
   if (line.type === "command") {
     return (
       <div className="terminal-line" suppressHydrationWarning={true}>
-        {/* Command prompt showing user and directory */}
-        <span className="prompt">
+        {/* Command line showing the prompt and command */}
+        <span className="command">
           <span className="username">{nickname}</span>@terminal:
-          {line.directory || "~"}$
+          {line.directory || "~"}$ {line.content}
         </span>
-        {/* The actual command that was typed */}
-        <span className="command">{line.content}</span>
       </div>
     );
   }

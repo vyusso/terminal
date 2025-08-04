@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from "react";
 
 /**
  * Props for the TerminalInput component
- * Contains all the data and callbacks needed for input functionality
  */
 interface TerminalInputProps {
   /** Callback function to execute when a command is submitted */
@@ -24,6 +23,7 @@ interface TerminalInputProps {
  * - Command input and submission
  * - Command history navigation (up/down arrow keys)
  * - Auto-focus on mount
+ * - Focus state management for cursor display
  *
  * The component displays a prompt showing the current user and directory,
  * followed by an input field where users can type commands.
@@ -34,20 +34,46 @@ export default function TerminalInput({
   currentDirectory,
   nickname,
 }: TerminalInputProps) {
+  // ========================================
+  // STATE MANAGEMENT
+  // ========================================
+
   /** Current input value in the command field */
   const [input, setInput] = useState("");
 
   /** Current position in command history (-1 means not browsing history) */
   const [historyIndex, setHistoryIndex] = useState(-1);
 
+  /** Whether the input field is currently focused */
+  const [isFocused, setIsFocused] = useState(false);
+
+  // ========================================
+  // REFERENCES
+  // ========================================
+
   /** Reference to the input element for auto-focus */
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // ========================================
+  // EFFECTS
+  // ========================================
+
+  /**
+   * Auto-focus the input field when component mounts
+   * This ensures users can start typing immediately
+   */
+  useEffect(() => {
+    inputRef.current?.focus();
+    setIsFocused(true);
+  }, []);
+
+  // ========================================
+  // EVENT HANDLERS
+  // ========================================
 
   /**
    * Handles form submission when user presses Enter
    * Executes the command and clears the input field
-   *
-   * @param e - Form submission event
    */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,8 +89,6 @@ export default function TerminalInput({
    *
    * Arrow Up: Navigate to previous commands in history
    * Arrow Down: Navigate to more recent commands in history
-   *
-   * @param e - Keyboard event
    */
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowUp") {
@@ -92,19 +116,23 @@ export default function TerminalInput({
   };
 
   /**
-   * Auto-focus the input field when component mounts
-   * This ensures users can start typing immediately
-   */
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  /**
    * Refocuses the hidden input field when clicking anywhere in the terminal line
    * This mimics real terminal behavior where clicking anywhere brings back focus
    */
   const handleContainerClick = () => {
-    inputRef.current?.focus();
+    if (inputRef.current) {
+      // Prevent any scroll behavior when focusing
+      const originalScrollIntoView = inputRef.current.scrollIntoView;
+      inputRef.current.scrollIntoView = () => {};
+      inputRef.current.focus();
+      setIsFocused(true);
+      // Restore the original method after focus
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.scrollIntoView = originalScrollIntoView;
+        }
+      }, 0);
+    }
   };
 
   /**
@@ -117,21 +145,21 @@ export default function TerminalInput({
     }
   };
 
+  // ========================================
+  // RENDER
+  // ========================================
+
   return (
     <div
       className="terminal-line"
       suppressHydrationWarning={true}
       onClick={handleContainerClick}
     >
-      {/* Command prompt showing user and directory */}
-      <span className="prompt">
-        <span className="username">{nickname}</span>@terminal:{currentDirectory}
-        $
-      </span>
-      {/* The actual command input with cursor */}
+      {/* Command line showing the prompt and input with cursor */}
       <span className="command">
-        {input}
-        <span className="cursor">|</span>
+        <span className="username">{nickname}</span>@terminal:{currentDirectory}
+        $ {input}
+        {isFocused && <span className="cursor">|</span>}
       </span>
 
       {/* Hidden input field for capturing keystrokes */}
@@ -142,13 +170,17 @@ export default function TerminalInput({
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
         onKeyPress={handleKeyPress}
-        autoFocus
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
         style={{
-          position: "absolute",
-          top: "0",
-          left: "-9999px",
+          position: "fixed",
+          top: "-1000px",
+          left: "-1000px",
+          width: "1px",
+          height: "1px",
           opacity: 0,
           pointerEvents: "none",
+          zIndex: -1,
         }}
       />
     </div>
