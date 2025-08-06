@@ -1,0 +1,264 @@
+/* ========================================
+   CRT SCREEN EFFECT - COMPLETE PACKAGE
+   ========================================
+
+   USAGE:
+   - Add 'crt-on' class for basic CRT effect
+   - Add 'crt-boot' class for startup animation
+   - Example: <div class="crt-on crt-boot">Content</div>
+
+   FEATURES:
+   - Authentic scanlines (static)
+   - Screen flicker with random timing
+   - Dark gradient background
+   - Curvature shadows
+   - Boot animation with black delay
+   - Monospaced font styling
+
+   REQUIREMENTS:
+   - CSS3 support
+   - No additional dependencies
+   - Works with any framework
+   ======================================== */
+
+/* CRT Effect Styles */
+.crt-on {
+  background: linear-gradient(135deg, #1a1a1a 0%, #000000 50%, #1a1a1a 100%);
+  color: #fff;
+  font-family: "Courier New", monospace;
+  position: relative;
+  overflow: hidden;
+  min-height: 100vh;
+  box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.6), 0 0 60px rgba(0, 0, 0, 0.9);
+}
+
+/* Scanlines */
+.crt-on::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(transparent 50%, rgba(0, 0, 0, 0.4) 50%);
+  background-size: 100% 4px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Screen flicker overlay */
+.crt-on::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.1);
+  pointer-events: none;
+  z-index: 1000;
+  animation: screenFlicker 3s infinite steps(1);
+}
+
+/* Screen flicker animation */
+@keyframes screenFlicker {
+  0% {
+    background: rgba(0, 0, 0, 0);
+  }
+  2% {
+    background: rgba(0, 0, 0, 0.03);
+  }
+  4% {
+    background: rgba(0, 0, 0, 0);
+  }
+  8% {
+    background: rgba(0, 0, 0, 0.02);
+  }
+  10% {
+    background: rgba(0, 0, 0, 0);
+  }
+  15% {
+    background: rgba(0, 0, 0, 0.04);
+  }
+  17% {
+    background: rgba(0, 0, 0, 0);
+  }
+  22% {
+    background: rgba(0, 0, 0, 0.03);
+  }
+  24% {
+    background: rgba(0, 0, 0, 0);
+  }
+  30% {
+    background: rgba(0, 0, 0, 0.04);
+  }
+  32% {
+    background: rgba(0, 0, 0, 0);
+  }
+  40% {
+    background: rgba(0, 0, 0, 0.08);
+  }
+  45% {
+    background: rgba(0, 0, 0, 0);
+  }
+  50% {
+    background: rgba(0, 0, 0, 0.02);
+  }
+  52% {
+    background: rgba(0, 0, 0, 0);
+  }
+  60% {
+    background: rgba(0, 0, 0, 0.03);
+  }
+  62% {
+    background: rgba(0, 0, 0, 0);
+  }
+  70% {
+    background: rgba(0, 0, 0, 0.02);
+  }
+  72% {
+    background: rgba(0, 0, 0, 0);
+  }
+  80% {
+    background: rgba(0, 0, 0, 0.04);
+  }
+  82% {
+    background: rgba(0, 0, 0, 0);
+  }
+  90% {
+    background: rgba(0, 0, 0, 0.02);
+  }
+  92% {
+    background: rgba(0, 0, 0, 0);
+  }
+  100% {
+    background: rgba(0, 0, 0, 0);
+  }
+}
+
+/* Boot-up animation */
+.crt-boot {
+  opacity: 0;
+  animation: bootUp 3s ease-in-out 1s forwards;
+}
+
+.crt-boot::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 1);
+  z-index: 2000;
+  animation: bootOverlay 3s ease-in-out 1s forwards;
+}
+
+@keyframes bootUp {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.1;
+  }
+  40% {
+    opacity: 0.3;
+  }
+  60% {
+    opacity: 0.6;
+  }
+  80% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes bootOverlay {
+  0% {
+    background: rgba(0, 0, 0, 1);
+  }
+  20% {
+    background: rgba(0, 0, 0, 0.8);
+  }
+  40% {
+    background: rgba(0, 0, 0, 0.6);
+  }
+  60% {
+    background: rgba(0, 0, 0, 0.3);
+  }
+  80% {
+    background: rgba(0, 0, 0, 0.1);
+  }
+  100% {
+    background: rgba(0, 0, 0, 0);
+  }
+}
+
+/* ========================================
+     EXAMPLE USAGE CODE
+     ======================================== */
+
+/* HTML Example:
+  <div class="crt-on crt-boot">
+    <h1>CRT Effect</h1>
+    <p>Your content here</p>
+  </div>
+  */
+
+/* React/Next.js Example:
+  import { useEffect, useState } from 'react';
+  
+  function CRTComponent() {
+    const [isBooted, setIsBooted] = useState(false);
+    
+    useEffect(() => {
+      setTimeout(() => setIsBooted(true), 500);
+    }, []);
+    
+    return (
+      <div className={`crt-on ${isBooted ? 'crt-boot' : ''}`}>
+        <h1>CRT Effect</h1>
+        <p>Your content here</p>
+      </div>
+    );
+  }
+  */
+
+/* Vue Example:
+  <template>
+    <div :class="['crt-on', { 'crt-boot': isBooted }]">
+      <h1>CRT Effect</h1>
+      <p>Your content here</p>
+    </div>
+  </template>
+  
+  <script>
+  export default {
+    data() {
+      return {
+        isBooted: false
+      }
+    },
+    mounted() {
+      setTimeout(() => {
+        this.isBooted = true;
+      }, 500);
+    }
+  }
+  </script>
+  */
+
+/* Vanilla JavaScript Example:
+  <div id="crt-container" class="crt-on">
+    <h1>CRT Effect</h1>
+    <p>Your content here</p>
+  </div>
+  
+  <script>
+  setTimeout(() => {
+    document.getElementById('crt-container').classList.add('crt-boot');
+  }, 500);
+  </script>
+  */

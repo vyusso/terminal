@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 /**
  * Props for the PasswordScreen component
@@ -42,6 +42,20 @@ export default function PasswordScreen({
 
   /** Whether the input field is currently focused */
   const [isFocused, setIsFocused] = useState(false);
+
+  // ========================================
+  // EFFECTS
+  // ========================================
+
+  // Apply CRT effect to body element
+  useEffect(() => {
+    document.body.classList.add("crt-enabled");
+
+    // Cleanup function to remove CRT effect when component unmounts
+    return () => {
+      document.body.classList.remove("crt-enabled");
+    };
+  }, []);
 
   // ========================================
   // EVENT HANDLERS
@@ -105,48 +119,53 @@ export default function PasswordScreen({
   // ========================================
 
   return (
-    <div className="terminal-container" onClick={handleContainerClick}>
-      {/* Main terminal line with prompt and command */}
-      <div className="terminal-line">
-        {/* Command line showing the password input with cursor */}
-        <span className="command">
-          Enter password: {password.replace(/./g, "*")}
-          {isFocused && <span className="cursor">|</span>}
-        </span>
+    <>
+      {/* Scan lines overlay - always on top */}
+      <div className="scanlines-overlay"></div>
+
+      <div className="terminal-container" onClick={handleContainerClick}>
+        {/* Main terminal line with prompt and command */}
+        <div className="terminal-line">
+          {/* Command line showing the password input with cursor */}
+          <span className="command">
+            Enter password: {password.replace(/./g, "*")}
+            {isFocused && <span className="cursor">|</span>}
+          </span>
+        </div>
+
+        {/* Error message displayed as terminal output */}
+        {error && (
+          <div className="terminal-line">
+            <span className="output error">{error}</span>
+          </div>
+        )}
+
+        {/* Loading message displayed as terminal output */}
+        {isLoading && (
+          <div className="terminal-line">
+            <span className="output">Verifying password...</span>
+          </div>
+        )}
+
+        {/* Hidden input field for capturing keystrokes */}
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onKeyPress={handleKeyPress}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          autoFocus
+          disabled={isLoading}
+          style={{
+            position: "absolute",
+            top: "0",
+            left: "-9999px",
+            opacity: 0,
+            pointerEvents: "none",
+          }}
+        />
       </div>
-
-      {/* Error message displayed as terminal output */}
-      {error && (
-        <div className="terminal-line">
-          <span className="output error">{error}</span>
-        </div>
-      )}
-
-      {/* Loading message displayed as terminal output */}
-      {isLoading && (
-        <div className="terminal-line">
-          <span className="output">Verifying password...</span>
-        </div>
-      )}
-
-      {/* Hidden input field for capturing keystrokes */}
-      <input
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        onKeyPress={handleKeyPress}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-        autoFocus
-        disabled={isLoading}
-        style={{
-          position: "absolute",
-          top: "0",
-          left: "-9999px",
-          opacity: 0,
-          pointerEvents: "none",
-        }}
-      />
-    </div>
+    </>
   );
 }

@@ -15,11 +15,17 @@ import { useState, useEffect, useRef } from "react";
  * - Volume control (30% default)
  * - Multiple audio format support
  */
-export default function AudioPlayer() {
+interface AudioPlayerProps {
+  crtEnabled: boolean;
+  onToggleCrt: () => void;
+}
+
+export default function AudioPlayer({
+  crtEnabled,
+  onToggleCrt,
+}: AudioPlayerProps) {
   // Track if audio is currently playing
   const [isPlaying, setIsPlaying] = useState(false);
-  // Track if CRT effect is enabled
-  const [crtEnabled, setCrtEnabled] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
@@ -98,9 +104,7 @@ export default function AudioPlayer() {
    * Toggles the CRT effect on/off
    */
   const toggleCrt = () => {
-    setCrtEnabled(!crtEnabled);
-    // Toggle CRT effect by adding/removing CSS class
-    document.body.classList.toggle("crt-enabled");
+    onToggleCrt();
   };
 
   return (
@@ -140,9 +144,9 @@ export default function AudioPlayer() {
           border: "1px solid #ff6b35",
           color: "#ff6b35",
           padding: "4px 8px",
-          cursor: "pointer",
+          cursor: "url('/pointer.svg') 8 8, pointer",
           fontSize: "12px",
-          zIndex: 1000,
+          zIndex: 10010,
         }}
         title={crtEnabled ? "Disable CRT Effect" : "Enable CRT Effect"}
       >
@@ -163,9 +167,9 @@ export default function AudioPlayer() {
           border: "1px solid #ff6b35",
           color: "#ff6b35",
           padding: "4px 8px",
-          cursor: "pointer",
+          cursor: "url('/pointer.svg') 8 8, pointer",
           fontSize: "12px",
-          zIndex: 1000,
+          zIndex: 10010,
         }}
         title="Logout (Debug)"
       >

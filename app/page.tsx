@@ -57,6 +57,40 @@ export default function Home() {
   /** Password authentication status */
   const [passwordCorrect, setPasswordCorrect] = useState(false);
 
+  /** CRT effect state */
+  const [crtEnabled, setCrtEnabled] = useState(true);
+
+  // Apply CRT effect to body element
+  useEffect(() => {
+    if (crtEnabled) {
+      document.body.classList.add("crt-enabled");
+    } else {
+      document.body.classList.remove("crt-enabled");
+    }
+  }, [crtEnabled]);
+
+  // Apply bootup animation to body when on terminal page
+  useEffect(() => {
+    // Only add bootup animation when we're on the terminal page (after password and nickname)
+    if (passwordCorrect && nickname) {
+      // Ensure CRT effect is enabled first
+      document.body.classList.add("crt-enabled");
+      // Then add boot animation
+      document.body.classList.add("crt-boot");
+
+      // Remove the crt-boot class after animation completes (4 seconds total)
+      const timer = setTimeout(() => {
+        document.body.classList.remove("crt-boot");
+      }, 4000);
+
+      // Cleanup timer if component unmounts
+      return () => {
+        clearTimeout(timer);
+        document.body.classList.remove("crt-boot");
+      };
+    }
+  }, [passwordCorrect, nickname]);
+
   // ========================================
   // HOOKS & REFERENCES
   // ========================================
@@ -173,11 +207,17 @@ export default function Home() {
   // Step 3: Show main terminal (after password and nickname are set)
   return (
     <>
+      {/* Scan lines overlay - always on top */}
+      {crtEnabled && <div className="scanlines-overlay"></div>}
+
       {/* Clock component in top right */}
       <Clock />
 
       {/* Audio player component in bottom right */}
-      <AudioPlayer />
+      <AudioPlayer
+        crtEnabled={crtEnabled}
+        onToggleCrt={() => setCrtEnabled(!crtEnabled)}
+      />
 
       {/* Main terminal container */}
       <div

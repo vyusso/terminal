@@ -28,6 +28,24 @@ textarea,
 }
 
 /* ========================================
+   SCAN LINES OVERLAY
+   ======================================== */
+
+/* Scan lines overlay - separate from body pseudo-elements */
+.scanlines-overlay {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(transparent 50%, rgba(0, 0, 0, 0.6) 50%);
+  background-size: 100% 3px;
+  pointer-events: none !important;
+  z-index: 10005;
+}
+
+/* ========================================
    GLOBAL STYLES & CRT EFFECTS
    ======================================== */
 
@@ -55,61 +73,182 @@ body {
   padding: 0;
 }
 
-/* CRT Effect - Only applied when .crt-enabled class is present */
-.crt-enabled {
-  transform: perspective(800px) rotateX(3deg) scale(0.92);
-  transform-origin: center center;
-  overflow: hidden;
-  width: 100vw;
-  height: 100vh;
+/* Terminal page wrapper */
+.terminal-page {
+  min-height: 100vh;
+  width: 100%;
   position: relative;
 }
 
-.crt-enabled::before {
+/* CRT Effect - Only applied when .crt-enabled class is present */
+body.crt-enabled {
+  background: linear-gradient(135deg, #1a1a1a 0%, #000000 50%, #1a1a1a 100%);
+  color: #fff;
+  font-family: "Courier New", monospace;
+  position: relative;
+  overflow: visible;
+  min-height: 100vh;
+  box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.6), 0 0 60px rgba(0, 0, 0, 0.9);
+}
+
+/* Screen flicker overlay */
+body.crt-enabled::after {
   content: "";
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: radial-gradient(
-      ellipse 200px 200px at 0% 0%,
-      transparent 0%,
-      transparent 90%,
-      rgba(0, 0, 0, 0.03) 97%,
-      rgba(0, 0, 0, 0.1) 100%
-    ),
-    radial-gradient(
-      ellipse 200px 200px at 100% 0%,
-      transparent 0%,
-      transparent 90%,
-      rgba(0, 0, 0, 0.03) 97%,
-      rgba(0, 0, 0, 0.1) 100%
-    ),
-    radial-gradient(
-      ellipse 200px 200px at 0% 100%,
-      transparent 0%,
-      transparent 90%,
-      rgba(0, 0, 0, 0.03) 97%,
-      rgba(0, 0, 0, 0.1) 100%
-    ),
-    radial-gradient(
-      ellipse 200px 200px at 100% 100%,
-      transparent 0%,
-      transparent 90%,
-      rgba(0, 0, 0, 0.03) 97%,
-      rgba(0, 0, 0, 0.1) 100%
-    );
-  pointer-events: none;
-  z-index: 9999;
-  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.4), 0 0 30px rgba(0, 0, 0, 0.7);
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.1);
+  pointer-events: none !important;
+  z-index: 10002;
+  animation: screenFlicker 3s infinite steps(1);
 }
 
-/* Ensure fixed elements are affected when CRT is enabled */
-.crt-enabled .clock,
-.crt-enabled .audio-control {
-  transform: perspective(800px) rotateX(3deg) scale(0.92);
-  transform-origin: center center;
+/* Screen flicker animation */
+@keyframes screenFlicker {
+  0% {
+    background: rgba(0, 0, 0, 0);
+  }
+  2% {
+    background: rgba(0, 0, 0, 0.03);
+  }
+  4% {
+    background: rgba(0, 0, 0, 0);
+  }
+  8% {
+    background: rgba(0, 0, 0, 0.02);
+  }
+  10% {
+    background: rgba(0, 0, 0, 0);
+  }
+  15% {
+    background: rgba(0, 0, 0, 0.04);
+  }
+  17% {
+    background: rgba(0, 0, 0, 0);
+  }
+  22% {
+    background: rgba(0, 0, 0, 0.03);
+  }
+  24% {
+    background: rgba(0, 0, 0, 0);
+  }
+  30% {
+    background: rgba(0, 0, 0, 0.04);
+  }
+  32% {
+    background: rgba(0, 0, 0, 0);
+  }
+  40% {
+    background: rgba(0, 0, 0, 0.08);
+  }
+  45% {
+    background: rgba(0, 0, 0, 0);
+  }
+  50% {
+    background: rgba(0, 0, 0, 0.02);
+  }
+  52% {
+    background: rgba(0, 0, 0, 0);
+  }
+  60% {
+    background: rgba(0, 0, 0, 0.03);
+  }
+  62% {
+    background: rgba(0, 0, 0, 0);
+  }
+  70% {
+    background: rgba(0, 0, 0, 0.02);
+  }
+  72% {
+    background: rgba(0, 0, 0, 0);
+  }
+  80% {
+    background: rgba(0, 0, 0, 0.04);
+  }
+  82% {
+    background: rgba(0, 0, 0, 0);
+  }
+  90% {
+    background: rgba(0, 0, 0, 0.02);
+  }
+  92% {
+    background: rgba(0, 0, 0, 0);
+  }
+  100% {
+    background: rgba(0, 0, 0, 0);
+  }
+}
+
+/* Boot-up animation */
+body.crt-boot {
+  opacity: 0;
+  animation: bootUp 3s ease-in-out 1s forwards;
+}
+
+body.crt-boot::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 1);
+  z-index: 2000;
+  animation: bootOverlay 3s ease-in-out 1s forwards;
+}
+
+/* Ensure scan lines are visible during boot animation */
+body.crt-boot.crt-enabled::before {
+  z-index: 10003;
+}
+
+/* Make boot overlay semi-transparent when scan lines are enabled */
+body.crt-boot.crt-enabled::before {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+@keyframes bootUp {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.1;
+  }
+  40% {
+    opacity: 0.3;
+  }
+  60% {
+    opacity: 0.6;
+  }
+  80% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes bootOverlay {
+  0% {
+    background: rgba(0, 0, 0, 1);
+  }
+  20% {
+    background: rgba(0, 0, 0, 0.8);
+  }
+  40% {
+    background: rgba(0, 0, 0, 0.6);
+  }
+  60% {
+    background: rgba(0, 0, 0, 0.3);
+  }
+  80% {
+    background: rgba(0, 0, 0, 0.1);
+  }
+  100% {
+    background: rgba(0, 0, 0, 0);
+  }
 }
 
 /* ========================================
@@ -162,6 +301,8 @@ input.command {
   color: inherit;
   text-shadow: inherit;
   letter-spacing: inherit;
+  position: relative;
+  z-index: 101;
 }
 
 input.command::placeholder {
@@ -174,15 +315,15 @@ input.command::placeholder {
 
 /* Clock component - displays time and date in top-right corner */
 .clock {
-  position: fixed;
-  top: 20px;
-  right: 20px;
+  position: fixed !important;
+  top: 20px !important;
+  right: 20px !important;
   color: #ff6b35;
   text-shadow: 0 0 10px #ff6b35, 0 0 20px #ff6b35;
   font-family: inherit;
   font-size: 16px;
   line-height: 1.3;
-  z-index: 1000;
+  z-index: 10010 !important;
   text-align: right;
 }
 
@@ -239,16 +380,16 @@ input.command::placeholder {
 
 /* Audio control button - play/pause functionality */
 .audio-control {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
+  position: fixed !important;
+  bottom: 20px !important;
+  right: 20px !important;
   background: transparent;
   border: none;
   color: #ff6b35;
   font-size: 18px;
   padding: 0;
-  cursor: pointer;
-  z-index: 1000;
+  cursor: url("/pointer.svg") 8 8, pointer !important;
+  z-index: 10010 !important;
   font-family: inherit;
   text-shadow: 0 0 5px #ff6b35;
   width: 24px;
@@ -278,23 +419,9 @@ input.command::placeholder {
   height: 100vh;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 4px 0px 4px 0px;
-  padding-bottom: 120px;
-  padding-left: 10px;
-  padding-right: 10px;
-  /* Add extra padding when CRT is disabled */
-  padding-top: 20px;
-  padding-left: 20px;
+  padding: 4px 10px 120px 10px;
   position: relative;
-  z-index: 1;
-}
-
-/* Remove extra padding when CRT effect is enabled */
-.crt-enabled .terminal-container {
-  padding-top: 4px;
-  padding-left: 10px;
-  overflow-y: auto;
-  overflow-x: hidden;
+  z-index: 10000;
 }
 
 /* Hide scrollbar for webkit browsers */
@@ -362,7 +489,7 @@ a {
     left: 0;
     right: 0;
     bottom: 0;
-    padding-bottom: 80px;
+    padding: 4px 10px 80px 10px;
     width: 100vw;
   }
 
