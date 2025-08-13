@@ -82,7 +82,7 @@ body {
 
 /* CRT Effect - Only applied when .crt-enabled class is present */
 body.crt-enabled {
-  background: linear-gradient(135deg, #1a1a1a 0%, #000000 50%, #1a1a1a 100%);
+  background: #000000;
   color: #fff;
   font-family: "Courier New", monospace;
   position: relative;

@@ -24,29 +24,57 @@ export async function GET(request: NextRequest) {
     const realIp = request.headers.get("x-real-ip");
     const ip = forwarded ? forwarded.split(",")[0] : realIp || "unknown";
     const userAgent = request.headers.get("user-agent") || "";
+    const suppliedDeviceId = request.headers.get("x-device-id") || "";
+    const cookieDeviceId =
+      request.cookies.get("terminal_device_id")?.value || "";
 
-    // Create a unique device identifier (hash of User Agent for cross-network consistency)
-    const deviceId = createShortHash(userAgent);
+    // Prefer: header device id -> cookie device id -> UA hash fallback
+    const deviceId =
+      suppliedDeviceId || cookieDeviceId || createShortHash(userAgent);
 
     // Get user data from Firestore using device-specific ID
     const result = await getUserByIP(deviceId);
 
     if (result.success && result.data) {
-      return NextResponse.json({
+      const res = NextResponse.json({
         success: true,
         nickname: result.data.nickname,
         ip: ip,
         deviceId: deviceId,
         exists: true,
       });
+      // Ensure cookie is set for persistence across localStorage clears
+      if (!cookieDeviceId && deviceId) {
+        res.cookies.set({
+          name: "terminal_device_id",
+          value: deviceId,
+          path: "/",
+          httpOnly: false,
+          sameSite: "lax",
+          maxAge: 60 * 60 * 24 * 365 * 5, // 5 years
+        });
+      }
+      return res;
     } else {
-      return NextResponse.json({
+      const res = NextResponse.json({
         success: true,
         nickname: null,
         ip: ip,
         deviceId: deviceId,
         exists: false,
       });
+      // Ensure cookie is set for persistence across localStorage clears
+      if (!cookieDeviceId && deviceId) {
+        res.cookies.set({
+          name: "terminal_device_id",
+          value: deviceId,
+          path: "/",
+          httpOnly: false,
+          sameSite: "lax",
+          maxAge: 60 * 60 * 24 * 365 * 5, // 5 years
+        });
+      }
+      return res;
     }
   } catch (error) {
     console.error("Error getting nickname:", error);

@@ -8,6 +8,7 @@ import PasswordScreen from "./components/PasswordScreen";
 import NicknameScreen from "./components/NicknameScreen";
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState, useMemo } from "react";
+import { getOrCreateDeviceId } from "./utils/device";
 
 // ========================================
 // DYNAMIC IMPORTS (No SSR to prevent hydration issues)
@@ -149,7 +150,11 @@ export default function Home() {
       }
 
       // If no localStorage, check database by IP
-      const response = await fetch("/api/get-nickname");
+      const response = await fetch("/api/get-nickname", {
+        headers: {
+          "x-device-id": getOrCreateDeviceId(),
+        },
+      });
       const data = await response.json();
 
       if (data.success && data.exists && data.nickname) {

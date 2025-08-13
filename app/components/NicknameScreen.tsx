@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { getOrCreateDeviceId } from "../utils/device";
 
 /**
  * Props for the NicknameScreen component
@@ -91,6 +92,7 @@ export default function NicknameScreen({ onNicknameSet }: NicknameScreenProps) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "x-device-id": getOrCreateDeviceId(),
         },
         body: JSON.stringify({ nickname: trimmedNickname }),
       });

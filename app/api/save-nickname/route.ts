@@ -37,9 +37,13 @@ export async function POST(request: NextRequest) {
     const realIp = request.headers.get("x-real-ip");
     const ip = forwarded ? forwarded.split(",")[0] : realIp || "unknown";
     const userAgent = request.headers.get("user-agent") || "";
+    const suppliedDeviceId = request.headers.get("x-device-id") || "";
+    const cookieDeviceId =
+      request.cookies.get("terminal_device_id")?.value || "";
 
-    // Create a unique device identifier (hash of User Agent for cross-network consistency)
-    const deviceId = createShortHash(userAgent);
+    // Prefer: header device id -> cookie device id -> UA hash fallback
+    const deviceId =
+      suppliedDeviceId || cookieDeviceId || createShortHash(userAgent);
 
     // Check if nickname already exists (by any IP)
     const nicknameExists = await checkNicknameExists(nickname);
@@ -57,12 +61,24 @@ export async function POST(request: NextRequest) {
     const result = await saveUserNickname(nickname, deviceId);
 
     if (result.success) {
-      return NextResponse.json({
+      const res = NextResponse.json({
         success: true,
         message: "Nickname saved to database",
         ip: ip,
         deviceId: deviceId,
       });
+      // Ensure cookie is set for persistence across localStorage clears
+      if (!cookieDeviceId && deviceId) {
+        res.cookies.set({
+          name: "terminal_device_id",
+          value: deviceId,
+          path: "/",
+          httpOnly: false,
+          sameSite: "lax",
+          maxAge: 60 * 60 * 24 * 365 * 5, // 5 years
+        });
+      }
+      return res;
     } else {
       console.error("Firestore error:", result.error);
       return NextResponse.json(
