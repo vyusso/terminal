@@ -11,13 +11,24 @@ export function getOrCreateDeviceId(): string {
         return existing;
       }
 
-      const newId = (
-        typeof crypto !== "undefined" && (crypto as any).randomUUID
-          ? (crypto as any).randomUUID()
-          : `${Date.now()}-${Math.random().toString(36).slice(2)}-${
-              navigator?.userAgent || "ua"
-            }`
-      ).replace(/[^a-zA-Z0-9_-]/g, "");
+      type MaybeUuid = { randomUUID?: () => string };
+      let newIdSource: string | undefined;
+      if (typeof crypto !== "undefined") {
+        const maybeCrypto = crypto as unknown as MaybeUuid;
+        if (typeof maybeCrypto.randomUUID === "function") {
+          newIdSource = maybeCrypto.randomUUID();
+        }
+      }
+
+      if (!newIdSource) {
+        const ua =
+          typeof navigator !== "undefined" ? navigator.userAgent : "ua";
+        newIdSource = `${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2)}-${ua}`;
+      }
+
+      const newId = newIdSource.replace(/[^a-zA-Z0-9_-]/g, "");
 
       localStorage.setItem(storageKey, newId);
       return newId;
