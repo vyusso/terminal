@@ -7,6 +7,7 @@ import {
   query,
   where,
   serverTimestamp,
+  Timestamp,
 } from "firebase/firestore";
 import { db } from "./firebase";
 
@@ -92,11 +93,21 @@ export const upsertActiveComment = async (
 ) => {
   try {
     const docRef = doc(db, ACTIVE_COMMENTS_COLLECTION, nickname);
-    await setDoc(
-      docRef,
-      { nickname, content, updatedAt: serverTimestamp() },
-      { merge: true }
-    );
+    const existing = await getDoc(docRef);
+    if (existing.exists()) {
+      await setDoc(
+        docRef,
+        { nickname, content, updatedAt: serverTimestamp() },
+        { merge: true }
+      );
+    } else {
+      await setDoc(docRef, {
+        nickname,
+        content,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
     return { success: true };
   } catch (error) {
     console.error("Error upserting active comment:", error);
@@ -128,10 +139,23 @@ export const getActiveComment = async (nickname: string) => {
 export const getAllActiveComments = async () => {
   try {
     const snap = await getDocs(collection(db, ACTIVE_COMMENTS_COLLECTION));
-    const items = snap.docs.map(
-      (d) => d.data() as { nickname: string; content: string }
-    );
-    return { success: true, data: items };
+    type ActiveComment = {
+      nickname: string;
+      content: string;
+      createdAt?: Timestamp;
+      updatedAt?: Timestamp;
+    };
+    const items = snap.docs.map((d) => d.data() as ActiveComment);
+    const sorted = items.sort((a, b) => {
+      const at = a.createdAt?.toMillis() ?? a.updatedAt?.toMillis() ?? 0;
+      const bt = b.createdAt?.toMillis() ?? b.updatedAt?.toMillis() ?? 0;
+      return at - bt;
+    });
+    const simplified = sorted.map((i) => ({
+      nickname: i.nickname,
+      content: i.content,
+    }));
+    return { success: true, data: simplified };
   } catch (error) {
     console.error("Error listing active comments:", error);
     return { success: false, error };
