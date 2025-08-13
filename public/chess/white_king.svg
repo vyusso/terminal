@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <g fill="#ff6b35" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Body first so cross renders on top -->
+    <path d="M20 26c0-5 24-5 24 0 0 9-7 14-7 22h-10c0-9-7-13-7-22z"/>
+    <!-- Cross: perfectly centered on x=32 with equal arms -->
+    <rect x="29" y="5" width="6" height="16"/>
+    <rect x="24" y="10" width="16" height="6"/>
+    <rect x="18" y="48" width="28" height="6" rx="2"/>
+    <rect x="14" y="54" width="36" height="4" rx="2"/>
+  </g>
+</svg>
+
+

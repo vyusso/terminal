@@ -1,4 +1,5 @@
 import { CommandResult, TerminalState } from "../types/terminal";
+import { upsertActiveComment } from "../lib/firestore";
 import {
   getNodeAtPath,
   getParentPath,
@@ -39,6 +40,8 @@ export const executeCommand = (
       return executeLs(args, state);
     case "mkdir":
       return executeMkdir(args, state);
+    case "chess":
+      return { output: ["chess.exe running"] };
     case "comment":
       return executeComment(args, state, nickname);
     case "open":
@@ -146,6 +149,8 @@ const executeLs = (args: string[], state: TerminalState): CommandResult => {
       error: `ls: ${targetPath}: No such file or directory`,
     };
   }
+
+  // No special-casing for 'active': keep standard ls behavior
 
   // Get the target directory
   const targetNode = getNodeAtPath(state.fileSystem, targetPath);
@@ -258,26 +263,24 @@ const executeComment = (
     content
   );
 
-  if (success) {
-    return { output: ["file created"] };
-  } else {
-    // File already exists, try to update it
-    success = updateFile(
-      state.fileSystem,
-      state.currentDirectory,
-      fileName,
-      content
-    );
+  // Save to shared DB as well (async fire-and-forget)
+  void upsertActiveComment(nickname, content);
 
-    if (success) {
-      return { output: ["file updated"] };
-    } else {
-      return {
-        output: [],
-        error: `comment: cannot update file '${fileName}': File not found`,
-      };
-    }
-  }
+  if (success) return { output: ["file created (shared)"] };
+
+  // File already exists, try to update it
+  success = updateFile(
+    state.fileSystem,
+    state.currentDirectory,
+    fileName,
+    content
+  );
+  if (success) return { output: ["file updated (shared)"] };
+
+  return {
+    output: [],
+    error: `comment: cannot update file '${fileName}': File not found`,
+  };
 };
 
 /**
@@ -327,6 +330,7 @@ const executeHelp = (): CommandResult => {
     "  cd ..              Go to parent directory",
     "  ls                 List directory contents",
     "  mkdir [directory]  Create a new directory",
+    "  chess              Launch chess window",
     "  comment [text]     Create a text file with content",
     "  open [filename]    Read and display file contents",
     "  pwd                Print working directory",

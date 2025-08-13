@@ -12,18 +12,17 @@
 /* Pointer cursor for clickable elements */
 button,
 .clickable,
+.clickable *,
 .audio-control,
 .clock {
   cursor: url("/pointer.svg") 2 2, pointer !important;
 }
 
-/* Text cursor for terminal and text input areas */
-.terminal-container,
-.terminal-line,
+/* Text cursor only on actual editable area */
+[contenteditable],
 input[type="text"],
 input[type="password"],
-textarea,
-.command {
+textarea {
   cursor: url("/text-cursor.svg") 1 10, text !important;
 }
 
@@ -42,7 +41,7 @@ textarea,
   background: linear-gradient(transparent 60%, rgba(0, 0, 0, 0.6) 60%);
   background-size: 100% 4px;
   pointer-events: none !important;
-  z-index: 10005;
+  z-index: 11000; /* Above all UI, but clicks pass through */
 }
 
 /* ========================================
@@ -278,6 +277,9 @@ body.crt-boot.crt-enabled::before {
 .command {
   color: #eee;
   flex: 1;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  display: block;
 }
 
 .output {
@@ -285,8 +287,7 @@ body.crt-boot.crt-enabled::before {
   margin-left: 0;
   flex: 1;
   white-space: pre-wrap;
-  word-wrap: break-word;
-  word-break: break-all;
+  overflow-wrap: break-word;
 }
 
 .cursor {
@@ -424,6 +425,160 @@ input.command::placeholder {
   z-index: 10000;
 }
 
+/* ========================================
+   GENERIC BUTTONS (ORANGE THEME)
+   ======================================== */
+
+.btn {
+  background: transparent;
+  border: 1px solid #ff6b35;
+  color: #ff6b35;
+  padding: 6px 12px;
+  font-size: 14px;
+  cursor: url("/pointer.svg") 8 8, pointer !important;
+}
+
+.btn--md {
+  padding: 6px 16px;
+  font-size: 16px;
+}
+.btn--lg {
+  padding: 8px 18px;
+  font-size: 18px;
+}
+.btn--sm {
+  padding: 4px 10px;
+  font-size: 14px;
+}
+
+/* Fixed-position helper buttons */
+.btn-crt-toggle {
+  position: fixed;
+  bottom: 20px;
+  right: 140px;
+  z-index: 10010;
+}
+.btn-logout {
+  position: fixed;
+  bottom: 20px;
+  right: 55px;
+  z-index: 10010;
+}
+
+/* ========================================
+   CHESS WINDOW STYLES
+   ======================================== */
+
+.chess-window {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  background: #000;
+  color: #eee;
+  border: 1px solid #ff6b35;
+  box-shadow: 0 0 12px rgba(255, 107, 53, 0.4);
+  z-index: 10020;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 24px);
+  padding-bottom: env(safe-area-inset-bottom);
+  pointer-events: auto;
+  text-shadow: none;
+  animation: none;
+  letter-spacing: normal;
+}
+
+@media screen and (max-width: 768px) {
+  .chess-window {
+    right: auto;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    bottom: auto;
+  }
+}
+
+.chess-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid #ff6b35;
+  color: #ff6b35;
+  text-shadow: none;
+  letter-spacing: normal;
+}
+
+.chess-modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.86);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10030;
+}
+
+.chess-modal {
+  background: #000;
+  border: 1px solid #ff6b35;
+  box-shadow: 0 0 12px rgba(255, 107, 53, 0.4);
+  padding: 20px;
+  min-width: 300px;
+  max-width: 380px;
+  text-align: center;
+  color: #ff6b35;
+  font-size: 16px;
+}
+
+.chess-modal-title {
+  margin-bottom: 14px;
+  font-weight: 700;
+  font-size: 18px;
+}
+.chess-modal-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.chess-status {
+  color: #ff6b35;
+  border: 1px solid #ff6b35;
+  padding: 6px 10px;
+  margin-bottom: 8px;
+  text-align: center;
+  text-shadow: none;
+  animation: none;
+}
+
+.chess-board {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  border: 1px solid #ff6b35;
+}
+
+.chess-square {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border: 1px solid #222;
+}
+
+.chess-square--dark {
+  background: #111;
+}
+.chess-square--light {
+  background: #000;
+}
+.chess-square--selected {
+  border: 1px solid #ff6b35;
+}
+.chess-square--highlight {
+  border: 1px dashed #ff6b35;
+}
+
 /* Hide scrollbar for webkit browsers */
 .terminal-container::-webkit-scrollbar {
   display: none;
@@ -518,7 +673,7 @@ a {
   }
 
   .output {
-    white-space: normal;
+    white-space: pre-wrap;
     word-wrap: break-word;
     word-break: break-all;
     display: block;
@@ -679,4 +834,16 @@ a {
 
 .landing-footer a:hover {
   text-decoration: underline;
+}
+
+/* Selection highlight: black text on orange background; darker shadow for legibility */
+::selection {
+  background: #ff6b35;
+  color: #000;
+  text-shadow: 0 0 2px #000, 0 0 6px rgba(0, 0, 0, 0.7) !important;
+}
+::-moz-selection {
+  background: #ff6b35;
+  color: #000;
+  text-shadow: 0 0 2px #000, 0 0 6px rgba(0, 0, 0, 0.7) !important;
 }

@@ -1,0 +1,626 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Chess, type Square, type Move } from "chess.js";
+
+type Color = "white" | "black";
+
+interface ChessWindowProps {
+  onClose: () => void;
+}
+
+export default function ChessWindow({ onClose }: ChessWindowProps) {
+  const gameRef = useRef<Chess>(new Chess());
+  const [board, setBoard] = useState<string[][]>(() =>
+    fromFen(gameRef.current.fen())
+  );
+  const [turn, setTurn] = useState<Color>("white");
+  const [selected, setSelected] = useState<{ r: number; c: number } | null>(
+    null
+  );
+  const [legalTargets, setLegalTargets] = useState<Square[]>([]);
+  const [gameOverText, setGameOverText] = useState<string | null>(null);
+  const [boardSize, setBoardSize] = useState<number>(400);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+  // Setup modal state: 'choose' (Bot or Room), 'bot' (difficulty), 'color' (pick side), 'room' (Create/Join), 'none' (hidden)
+  const [showSetup, setShowSetup] = useState<
+    "choose" | "bot" | "color" | "room" | "none"
+  >("choose");
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const engineRef = useRef<Worker | null>(null);
+  const [botLevel, setBotLevel] = useState<number | null>(null);
+  const [engineReady, setEngineReady] = useState<boolean>(false);
+  const engineGoStartRef = useRef<number>(0);
+  const [isThinking, setIsThinking] = useState<boolean>(false);
+  const [thinkingDots, setThinkingDots] = useState<number>(0);
+  const [opponent, setOpponent] = useState<string>("-");
+  const [engineSide, setEngineSide] = useState<"w" | "b" | null>(null);
+  const moveAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Responsive sizing for mobile/desktop
+  useEffect(() => {
+    const compute = () => {
+      const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
+      const vh = typeof window !== "undefined" ? window.innerHeight : 768;
+      const mobile = vw <= 768;
+      setIsMobile(mobile);
+      // Fit board within viewport while keeping margins
+      const maxBoard = 400;
+      const minBoard = 240;
+      const available = Math.min(vw - 32, vh - 160);
+      const next = Math.max(minBoard, Math.min(maxBoard, available));
+      setBoardSize(next);
+    };
+    compute();
+    window.addEventListener("resize", compute);
+    return () => window.removeEventListener("resize", compute);
+  }, []);
+
+  const pieceToSvg = useMemo(() => createPieceMap(), []);
+
+  // Prepare move sound once on mount
+  useEffect(() => {
+    moveAudioRef.current = new Audio("/audio/chessmove.mp3");
+    if (moveAudioRef.current) {
+      moveAudioRef.current.volume = 1.0;
+      moveAudioRef.current.preload = "auto";
+    }
+  }, []);
+
+  const playMoveSound = () => {
+    const el = moveAudioRef.current;
+    if (!el) return;
+    try {
+      el.currentTime = 0;
+      // Some browsers need a clone to overlap quick consecutive plays
+      const clone = el.cloneNode(true) as HTMLAudioElement;
+      clone.volume = el.volume;
+      void clone.play();
+    } catch {}
+  };
+
+  // Animate thinking dots while engine is thinking
+  useEffect(() => {
+    if (!isThinking) return;
+    setThinkingDots(0);
+    const id = setInterval(() => {
+      setThinkingDots((d) => (d + 1) % 4);
+    }, 400);
+    return () => clearInterval(id);
+  }, [isThinking]);
+
+  useEffect(() => {
+    if (botLevel && !engineRef.current) {
+      const w = new Worker(
+        new URL("../workers/stockfish.worker.ts", import.meta.url)
+      );
+      engineRef.current = w;
+      setEngineReady(false);
+      w.onmessage = (e) => {
+        const raw: string = (e.data || "").toString();
+        if (typeof raw !== "string") return;
+        const line = raw.trim();
+        if (line === "uciok") {
+          w.postMessage("isready");
+          return;
+        }
+        if (
+          line === "readyok" ||
+          line.startsWith("id ") ||
+          line.startsWith("option ")
+        ) {
+          setEngineReady(true);
+          w.postMessage("ucinewgame");
+          return;
+        }
+        if (line.startsWith("bestmove")) {
+          const parts = line.split(" ");
+          const uci = parts[1];
+          if (uci && uci.length >= 4) {
+            const from = uci.slice(0, 2) as Square;
+            const to = uci.slice(2, 4) as Square;
+            const promo = uci.slice(4, 5);
+            const applyMove = () => {
+              const move = gameRef.current.move({
+                from,
+                to,
+                promotion: (promo as "q" | "r" | "b" | "n") || "q",
+              });
+              if (move) {
+                setBoard(fromFen(gameRef.current.fen()));
+                setTurn(gameRef.current.turn() === "w" ? "white" : "black");
+                setSelected(null);
+                setLegalTargets([]);
+                updateStatus();
+                playMoveSound();
+              }
+              setIsThinking(false);
+            };
+            const elapsed =
+              typeof performance !== "undefined"
+                ? performance.now() - engineGoStartRef.current
+                : 0;
+            const delay = Math.max(0, 2000 - elapsed);
+            setTimeout(applyMove, delay);
+          }
+          return;
+        }
+        // Ignore other engine info lines
+      };
+      // Start UCI handshake
+      w.postMessage("uci");
+    }
+  }, [botLevel]);
+
+  // Update opponent when a bot level is selected or when room mode would set a name
+  useEffect(() => {
+    if (showSetup === "none" && botLevel) {
+      if (botLevel === 1) setOpponent("(Easy - 300–400 ELO)");
+      else if (botLevel === 5) setOpponent("(Medium - 800–1200 ELO)");
+      else if (botLevel === 12) setOpponent("(Hard - 1600–2000 ELO)");
+    }
+  }, [showSetup, botLevel]);
+
+  // Cleanup worker on unmount
+  useEffect(() => {
+    return () => {
+      if (engineRef.current) {
+        try {
+          engineRef.current.terminate();
+        } catch {}
+        engineRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!botLevel || !engineReady || !engineSide) return;
+    const game = gameRef.current;
+    if (game.turn() === engineSide && engineRef.current) {
+      const w = engineRef.current;
+      // Map botLevel to tuned settings
+      let skill = 10;
+      let maxErr = 0;
+      let prob = 0;
+      let searchCmd = "go movetime 1500";
+      if (botLevel === 1) {
+        // Easy ~300–400 Elo
+        skill = 0;
+        maxErr = 300;
+        prob = 90;
+        searchCmd = "go depth 1";
+      } else if (botLevel === 5) {
+        // Medium ~800–1200 Elo
+        skill = 4;
+        maxErr = 150;
+        prob = 50;
+        searchCmd = "go depth 3";
+      } else if (botLevel === 12) {
+        // Hard ~1600–2000 Elo
+        skill = 12;
+        maxErr = 30;
+        prob = 10;
+        searchCmd = "go movetime 1500";
+      }
+
+      w.postMessage(`setoption name Skill Level value ${skill}`);
+      w.postMessage(`setoption name Skill Level Maximum Error value ${maxErr}`);
+      w.postMessage(`setoption name Skill Level Probability value ${prob}`);
+      w.postMessage(`position fen ${game.fen()}`);
+      engineGoStartRef.current =
+        typeof performance !== "undefined" ? performance.now() : 0;
+      setIsThinking(true);
+      w.postMessage(searchCmd);
+    }
+  }, [board, botLevel, engineReady, engineSide]);
+
+  function handleSquareClick(r: number, c: number) {
+    if (gameOverText) return;
+    const coord = toCoord(r, c);
+    const game = gameRef.current;
+    const piece = board[r][c];
+    if (selected) {
+      const from = toCoord(selected.r, selected.c);
+      // If clicking same square: deselect
+      if (from === coord) {
+        setSelected(null);
+        setLegalTargets([]);
+        return;
+      }
+      // If clicking another own piece: switch selection
+      const clickedColor = piece ? (piece.startsWith("w") ? "w" : "b") : null;
+      if (clickedColor && clickedColor === game.turn()) {
+        setSelected({ r, c });
+        const moves = game.moves({
+          square: coord as Square,
+          verbose: true,
+        }) as Move[];
+        setLegalTargets(moves.map((m) => m.to as Square));
+        return;
+      }
+      // Attempt legal move from selected to clicked square
+      const move = game.move({
+        from: from as Square,
+        to: coord as Square,
+        promotion: "q",
+      });
+      if (move) {
+        setBoard(fromFen(game.fen()));
+        setTurn(game.turn() === "w" ? "white" : "black");
+        setSelected(null);
+        setLegalTargets([]);
+        updateStatus();
+        playMoveSound();
+      } else {
+        // Illegal target: keep current selection, do nothing
+      }
+    } else {
+      if (!piece) return;
+      const color = piece.startsWith("w") ? "w" : "b";
+      if (color !== game.turn()) return;
+      setSelected({ r, c });
+      // compute legal moves for highlighting
+      const moves = game.moves({
+        square: coord as Square,
+        verbose: true,
+      }) as Move[];
+      setLegalTargets(moves.map((m) => m.to as Square));
+    }
+  }
+
+  function updateStatus() {
+    const game = gameRef.current;
+    if (game.isCheckmate()) {
+      const loser = game.turn() === "w" ? "white" : "black";
+      const winner = loser === "white" ? "black" : "white";
+      setGameOverText(`${winner} wins by checkmate`);
+      return;
+    }
+    if (game.isStalemate()) {
+      setGameOverText("Draw by stalemate");
+      return;
+    }
+    if (game.isInsufficientMaterial()) {
+      setGameOverText("Draw by insufficient material");
+      return;
+    }
+    if (game.isThreefoldRepetition()) {
+      setGameOverText("Draw by threefold repetition");
+      return;
+    }
+    if (game.isDraw()) {
+      setGameOverText("Draw");
+    }
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      tabIndex={-1}
+      className="chess-window"
+      style={{
+        right: isMobile ? undefined : 20,
+        left: isMobile ? "50%" : undefined,
+        top: isMobile ? "50%" : undefined,
+        transform: isMobile ? "translate(-50%, -50%)" : undefined,
+        bottom: isMobile ? undefined : 20,
+        width: boardSize + 20,
+      }}
+    >
+      <div
+        className="chess-header"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+        }}
+      >
+        <div>chess.exe</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div
+            style={{
+              minWidth: "12ch",
+              textAlign: "right",
+              color: "#ff6b35",
+              textShadow: "none",
+              animation: "none",
+            }}
+          >
+            {isThinking ? `thinking${".".repeat(thinkingDots)}` : "\u00A0"}
+          </div>
+          <button onClick={onClose} className="clickable btn btn--sm">
+            Close
+          </button>
+        </div>
+      </div>
+
+      {/* Setup modal overlay */}
+      {showSetup !== "none" && (
+        <div className="chess-modal-overlay">
+          <div className="chess-modal">
+            {showSetup === "choose" && (
+              <>
+                <div className="chess-modal-title">Select mode</div>
+                <div className="chess-modal-buttons">
+                  <button
+                    className="clickable btn btn--lg"
+                    onClick={() => setShowSetup("bot")}
+                  >
+                    Bot
+                  </button>
+                  <button
+                    className="clickable btn btn--lg"
+                    onClick={() => setShowSetup("room")}
+                  >
+                    Room
+                  </button>
+                </div>
+              </>
+            )}
+            {showSetup === "bot" && (
+              <>
+                <div className="chess-modal-title">Bot</div>
+                <div className="chess-modal-buttons">
+                  <button
+                    className="clickable btn btn--lg"
+                    onClick={() => {
+                      setBotLevel(1);
+                      setShowSetup("color");
+                    }}
+                  >
+                    Easy
+                  </button>
+                  <button
+                    className="clickable btn btn--lg"
+                    onClick={() => {
+                      setBotLevel(5);
+                      setShowSetup("color");
+                    }}
+                  >
+                    Medium
+                  </button>
+                  <button
+                    className="clickable btn btn--lg"
+                    onClick={() => {
+                      setBotLevel(12);
+                      setShowSetup("color");
+                    }}
+                  >
+                    Hard
+                  </button>
+                </div>
+                <div style={{ marginTop: 14 }}>
+                  <button
+                    className="clickable btn btn--md"
+                    style={{ opacity: 0.85 }}
+                    onClick={() => setShowSetup("choose")}
+                  >
+                    Back
+                  </button>
+                </div>
+              </>
+            )}
+            {showSetup === "color" && (
+              <>
+                <div className="chess-modal-title">Choose color</div>
+                <div className="chess-modal-buttons">
+                  <button
+                    className="clickable btn btn--lg"
+                    onClick={() => {
+                      setEngineSide("b"); // you play white
+                      setShowSetup("none");
+                    }}
+                  >
+                    White
+                  </button>
+                  <button
+                    className="clickable btn btn--lg"
+                    onClick={() => {
+                      setEngineSide("w"); // you play black
+                      setShowSetup("none");
+                    }}
+                  >
+                    Black
+                  </button>
+                  <button
+                    className="clickable btn btn--lg"
+                    onClick={() => {
+                      const youWhite = Math.random() < 0.5;
+                      setEngineSide(youWhite ? "b" : "w");
+                      setShowSetup("none");
+                    }}
+                  >
+                    Random
+                  </button>
+                </div>
+                <div style={{ marginTop: 14 }}>
+                  <button
+                    className="clickable btn btn--md"
+                    style={{ opacity: 0.85 }}
+                    onClick={() => setShowSetup("bot")}
+                  >
+                    Back
+                  </button>
+                </div>
+              </>
+            )}
+            {showSetup === "room" && (
+              <>
+                <div className="chess-modal-title">Room</div>
+                <div className="chess-modal-buttons">
+                  <button
+                    className="clickable btn btn--lg"
+                    onClick={() => {
+                      /* no-op for now */
+                    }}
+                  >
+                    Create
+                  </button>
+                  <button
+                    className="clickable btn btn--lg"
+                    onClick={() => {
+                      /* no-op for now */
+                    }}
+                  >
+                    Join
+                  </button>
+                </div>
+                <div style={{ marginTop: 14 }}>
+                  <button
+                    className="clickable btn btn--md"
+                    onClick={() => setShowSetup("choose")}
+                    style={{ opacity: 0.85 }}
+                  >
+                    Back
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div style={{ padding: 10 }}>
+        {gameOverText && (
+          <div
+            style={{
+              color: "#ff6b35",
+              border: "1px solid #ff6b35",
+              padding: "6px 10px",
+              marginBottom: 8,
+              textAlign: "center",
+              textShadow: "none",
+              animation: "none",
+            }}
+          >
+            {gameOverText}
+          </div>
+        )}
+        <div
+          style={{
+            width: boardSize,
+            height: boardSize,
+            display: "grid",
+            gridTemplateColumns: "repeat(8, 1fr)",
+            gridTemplateRows: "repeat(8, 1fr)",
+            border: "1px solid #ff6b35",
+          }}
+        >
+          {Array.from({ length: 8 }).map((_, r) =>
+            Array.from({ length: 8 }).map((__, c) => {
+              const flipped = engineSide === "w"; // user plays black
+              const mr = flipped ? 7 - r : r;
+              const mc = flipped ? 7 - c : c;
+              const isDark = (r + c) % 2 === 1;
+              const piece = board[mr][mc];
+              const isSelected =
+                selected && selected.r === mr && selected.c === mc;
+              const highlight = (
+                legalTargets as ReadonlyArray<Square>
+              ).includes(toCoord(mr, mc) as Square);
+              const clickable = !!piece; // show pointer only on pieces
+              return (
+                <div
+                  key={`${r}-${c}`}
+                  onClick={() => handleSquareClick(mr, mc)}
+                  className={clickable ? "clickable" : undefined}
+                  style={{
+                    background: isDark ? "#111" : "#000",
+                    border: isSelected
+                      ? "1px solid #ff6b35"
+                      : highlight
+                      ? "1px dashed #ff6b35"
+                      : "1px solid #222",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    position: "relative",
+                  }}
+                >
+                  {piece && (
+                    <img
+                      src={pieceToSvg[piece]}
+                      alt={piece}
+                      width={Math.floor((boardSize / 8) * 0.8)}
+                      height={Math.floor((boardSize / 8) * 0.8)}
+                      style={{
+                        filter: "drop-shadow(0 0 6px rgba(255,107,53,0.4))",
+                      }}
+                    />
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            color: "#ff6b35",
+            marginTop: 8,
+            textShadow: "none",
+            animation: "none",
+          }}
+        >
+          <div>Turn: {turn}</div>
+          <div>{opponent}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function fromFen(fen: string): string[][] {
+  const [placement] = fen.split(" ");
+  const rows = placement.split("/");
+  return rows.map((row) => {
+    const out: string[] = [];
+    for (const ch of row) {
+      if (/\d/.test(ch)) {
+        out.push(...Array(parseInt(ch, 10)).fill(""));
+      } else {
+        const color = ch === ch.toLowerCase() ? "b" : "w";
+        const piece = ch.toLowerCase();
+        const code = color + pieceMap[piece as keyof typeof pieceMap];
+        out.push(code);
+      }
+    }
+    return out;
+  });
+}
+
+function createPieceMap(): Record<string, string> {
+  return {
+    wp: "/chess/white_pawn.svg",
+    wr: "/chess/white_rook.svg",
+    wb: "/chess/white_bishop.svg",
+    wn: "/chess/white_knight.svg",
+    wq: "/chess/white_queen.svg",
+    wk: "/chess/white_king.svg",
+    bp: "/chess/black_pawn.svg",
+    br: "/chess/black_rook.svg",
+    bb: "/chess/black_bishop.svg",
+    bn: "/chess/black_knight.svg",
+    bq: "/chess/black_queen.svg",
+    bk: "/chess/black_king.svg",
+  };
+}
+
+const pieceMap = {
+  p: "p",
+  r: "r",
+  n: "n",
+  b: "b",
+  q: "q",
+  k: "k",
+} as const;
+
+function toCoord(r: number, c: number): string {
+  // 0,0 is top-left; chess.js expects a1 bottom-left
+  const file = String.fromCharCode("a".charCodeAt(0) + c);
+  const rank = 8 - r;
+  return `${file}${rank}`;
+}

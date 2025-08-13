@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { getNodeAtPath } from "../utils/fileSystem";
 import { FileSystemNode } from "../types/terminal";
 
@@ -47,11 +47,13 @@ export default function TerminalInput({
   /** Current input value in the command field */
   const [input, setInput] = useState("");
 
+  // Old caretIndex logic removed; contentEditable caret is used
+  const editableRef = useRef<HTMLSpanElement>(null);
+
   /** Current position in command history (-1 means not browsing history) */
   const [historyIndex, setHistoryIndex] = useState(-1);
 
-  /** Whether the input field is currently focused */
-  const [isFocused, setIsFocused] = useState(false);
+  // focus tracking not used
 
   /** Current tab completion state */
   const [tabCompletionState, setTabCompletionState] = useState<{
@@ -65,21 +67,13 @@ export default function TerminalInput({
   // REFERENCES
   // ========================================
 
-  /** Reference to the input element for auto-focus */
-  const inputRef = useRef<HTMLInputElement>(null);
+  // legacy input ref removed
 
   // ========================================
   // EFFECTS
   // ========================================
 
-  /**
-   * Auto-focus the input field when component mounts
-   * This ensures users can start typing immediately
-   */
-  useEffect(() => {
-    inputRef.current?.focus();
-    setIsFocused(true);
-  }, []);
+  // Removed auto-focus; focusing is handled by container clicks to avoid scroll quirks
 
   // ========================================
   // UTILITY FUNCTIONS
@@ -146,7 +140,12 @@ export default function TerminalInput({
         (tabCompletionState.currentIndex + 1) %
         tabCompletionState.matches.length;
       words[words.length - 1] = tabCompletionState.matches[nextIndex];
-      setInput(words.join(" "));
+      const nextVal = words.join(" ");
+      setInput(nextVal);
+      if (editableRef.current) {
+        editableRef.current.innerText = nextVal;
+        placeCaretAtEnd(editableRef.current);
+      }
       setTabCompletionState({
         ...tabCompletionState,
         currentIndex: nextIndex,
@@ -169,7 +168,12 @@ export default function TerminalInput({
     if (!currentWord || currentWord.length === 0) {
       if (availableItems.length > 0) {
         words[words.length - 1] = availableItems[0];
-        setInput(words.join(" "));
+        const nextVal = words.join(" ");
+        setInput(nextVal);
+        if (editableRef.current) {
+          editableRef.current.innerText = nextVal;
+          placeCaretAtEnd(editableRef.current);
+        }
         setTabCompletionState({
           matches: availableItems,
           currentIndex: 0,
@@ -188,12 +192,22 @@ export default function TerminalInput({
     if (matches.length === 1) {
       // Single match - complete it
       words[words.length - 1] = matches[0];
-      setInput(words.join(" "));
+      const nextVal = words.join(" ");
+      setInput(nextVal);
+      if (editableRef.current) {
+        editableRef.current.innerText = nextVal;
+        placeCaretAtEnd(editableRef.current);
+      }
       setTabCompletionState(null); // Clear tab completion state
     } else if (matches.length > 1) {
       // Multiple matches - start cycling
       words[words.length - 1] = matches[0];
-      setInput(words.join(" "));
+      const nextVal = words.join(" ");
+      setInput(nextVal);
+      if (editableRef.current) {
+        editableRef.current.innerText = nextVal;
+        placeCaretAtEnd(editableRef.current);
+      }
       setTabCompletionState({
         matches,
         currentIndex: 0,
@@ -210,18 +224,7 @@ export default function TerminalInput({
   // EVENT HANDLERS
   // ========================================
 
-  /**
-   * Handles form submission when user presses Enter
-   * Executes the command and clears the input field
-   */
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (input.trim()) {
-      onExecute(input.trim()); // Execute the command
-      setInput(""); // Clear input field
-      setHistoryIndex(-1); // Reset history navigation
-    }
-  };
+  // submission handled in handleKeyDown
 
   /**
    * Handles keyboard events for command history navigation and tab completion
@@ -231,6 +234,21 @@ export default function TerminalInput({
    * Tab: Complete file names
    */
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // typing or navigation other than Tab cancels ongoing tab-cycling
+    if (e.key !== "Tab") {
+      setTabCompletionState(null);
+    }
+    // Enter submits; Shift+Enter creates a newline (default behavior in textarea)
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (input.trim()) {
+        onExecute(input.trim());
+        setInput("");
+        if (editableRef.current) editableRef.current.innerText = "";
+        setHistoryIndex(-1);
+      }
+      return;
+    }
     if (e.key === "ArrowUp") {
       e.preventDefault();
       // Navigate to previous command in history
@@ -238,7 +256,12 @@ export default function TerminalInput({
         const newIndex = historyIndex + 1;
         setHistoryIndex(newIndex);
         // Display the command from history (most recent first)
-        setInput(history[history.length - 1 - newIndex]);
+        const val = history[history.length - 1 - newIndex];
+        setInput(val);
+        if (editableRef.current) {
+          editableRef.current.innerText = val;
+          placeCaretAtEnd(editableRef.current);
+        }
       }
     } else if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -246,11 +269,17 @@ export default function TerminalInput({
         // Navigate to more recent command in history
         const newIndex = historyIndex - 1;
         setHistoryIndex(newIndex);
-        setInput(history[history.length - 1 - newIndex]);
+        const val = history[history.length - 1 - newIndex];
+        setInput(val);
+        if (editableRef.current) {
+          editableRef.current.innerText = val;
+          placeCaretAtEnd(editableRef.current);
+        }
       } else if (historyIndex === 0) {
         // Return to current input (not browsing history)
         setHistoryIndex(-1);
         setInput("");
+        if (editableRef.current) editableRef.current.innerText = "";
       }
     } else if (e.key === "Tab") {
       e.preventDefault();
@@ -262,19 +291,24 @@ export default function TerminalInput({
    * Refocuses the hidden input field when clicking anywhere in the terminal line
    * This mimics real terminal behavior where clicking anywhere brings back focus
    */
-  const handleContainerClick = () => {
-    if (inputRef.current) {
-      // Prevent any scroll behavior when focusing
-      const originalScrollIntoView = inputRef.current.scrollIntoView;
-      inputRef.current.scrollIntoView = () => {};
-      inputRef.current.focus();
-      setIsFocused(true);
-      // Restore the original method after focus
-      setTimeout(() => {
-        if (inputRef.current) {
-          inputRef.current.scrollIntoView = originalScrollIntoView;
-        }
-      }, 0);
+  const placeCaretAtEnd = (el: HTMLElement) => {
+    try {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      range.collapse(false);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    } catch {}
+  };
+
+  const handleContainerClick = (e: React.MouseEvent) => {
+    if (!editableRef.current) return;
+    const target = e.target as Node;
+    const clickedInside = editableRef.current.contains(target);
+    editableRef.current.focus();
+    if (!clickedInside) {
+      placeCaretAtEnd(editableRef.current);
     }
   };
 
@@ -282,11 +316,7 @@ export default function TerminalInput({
    * Handles key press events on the hidden input field
    * Allows submission via Enter key
    */
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleSubmit(e as React.FormEvent);
-    }
-  };
+  // Removed keyPress handler; handled via keyDown for Enter/Shift+Enter
 
   // ========================================
   // RENDER
@@ -301,42 +331,33 @@ export default function TerminalInput({
       {/* Command line showing the prompt and input with cursor */}
       <span className="command">
         <span className="username">{nickname}</span>@terminal:{currentDirectory}
-        $ {input}
-        {isFocused && <span className="cursor">|</span>}
+        $
+        <span contentEditable={false} aria-hidden="true">
+          {" "}
+        </span>
+        <span
+          ref={editableRef}
+          contentEditable
+          suppressContentEditableWarning
+          spellCheck={false}
+          autoCorrect="off"
+          autoCapitalize="off"
+          onInput={(e) => {
+            const text = (e.currentTarget.textContent || "").replace(
+              /\u00A0/g,
+              " "
+            );
+            setInput(text);
+            setTabCompletionState(null);
+            // caret naturally handled by contentEditable
+          }}
+          onKeyDown={handleKeyDown}
+          style={{ outline: "none", whiteSpace: "pre-wrap" }}
+        />
+        {/* Remove legacy blinking cursor; rely on native caret */}
       </span>
 
-      {/* Hidden input field for capturing keystrokes */}
-      <input
-        ref={inputRef}
-        type="text"
-        value={input}
-        onChange={(e) => {
-          setInput(e.target.value);
-          // Clear tab completion state when user types something different
-          if (tabCompletionState && tabCompletionState.isCycling) {
-            const words = e.target.value.split(" ");
-            const currentWord = words[words.length - 1];
-            // If user types something that's not in our cycling list, stop cycling
-            if (!tabCompletionState.matches.includes(currentWord)) {
-              setTabCompletionState(null);
-            }
-          }
-        }}
-        onKeyDown={handleKeyDown}
-        onKeyPress={handleKeyPress}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-        style={{
-          position: "fixed",
-          top: "-1000px",
-          left: "-1000px",
-          width: "1px",
-          height: "1px",
-          opacity: 0,
-          pointerEvents: "none",
-          zIndex: -1,
-        }}
-      />
+      {/* Hidden input removed */}
     </div>
   );
 }

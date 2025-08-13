@@ -12,6 +12,7 @@ import { db } from "./firebase";
 
 // Collection names
 const USERS_COLLECTION = "users";
+const ACTIVE_COMMENTS_COLLECTION = "active_comments";
 
 /**
  * Save user nickname to Firestore
@@ -78,5 +79,61 @@ export const checkNicknameExists = async (
   } catch (error) {
     console.error("Error checking nickname existence:", error);
     return false; // Assume nickname doesn't exist if there's an error
+  }
+};
+
+/**
+ * Upsert an active comment for a given nickname
+ * Ensures a single document per nickname (subsequent saves edit the same entry)
+ */
+export const upsertActiveComment = async (
+  nickname: string,
+  content: string
+) => {
+  try {
+    const docRef = doc(db, ACTIVE_COMMENTS_COLLECTION, nickname);
+    await setDoc(
+      docRef,
+      { nickname, content, updatedAt: serverTimestamp() },
+      { merge: true }
+    );
+    return { success: true };
+  } catch (error) {
+    console.error("Error upserting active comment:", error);
+    return { success: false, error };
+  }
+};
+
+/**
+ * Get a single active comment by nickname
+ */
+export const getActiveComment = async (nickname: string) => {
+  try {
+    const ref = doc(db, ACTIVE_COMMENTS_COLLECTION, nickname);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return { success: true, data: null };
+    return {
+      success: true,
+      data: snap.data() as { nickname: string; content: string },
+    };
+  } catch (error) {
+    console.error("Error getting active comment:", error);
+    return { success: false, error };
+  }
+};
+
+/**
+ * List all active comments (shared directory view)
+ */
+export const getAllActiveComments = async () => {
+  try {
+    const snap = await getDocs(collection(db, ACTIVE_COMMENTS_COLLECTION));
+    const items = snap.docs.map(
+      (d) => d.data() as { nickname: string; content: string }
+    );
+    return { success: true, data: items };
+  } catch (error) {
+    console.error("Error listing active comments:", error);
+    return { success: false, error };
   }
 };

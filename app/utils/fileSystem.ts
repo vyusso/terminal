@@ -22,6 +22,11 @@ export const createFileSystem = (nickname: string): FileSystemNode => {
             type: "directory",
             children: [
               {
+                name: "active",
+                type: "directory",
+                children: [],
+              },
+              {
                 name: "Documents",
                 type: "directory",
                 children: [

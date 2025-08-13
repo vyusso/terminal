@@ -60,6 +60,45 @@ export const useTerminal = (nickname: string) => {
     setLines([]); // Clear terminal lines when nickname changes
   }, [nickname]);
 
+  /**
+   * Load shared active comments into the virtual file system under /home/<nick>/active
+   * So that `ls` and `open` show the shared files after reload
+   */
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/get-active-comments");
+        const json = (await res.json()) as {
+          success: boolean;
+          data?: Array<{ nickname: string; content: string }>;
+        };
+        if (!json?.success || cancelled) return;
+        const items = json.data ?? [];
+
+        setState((prev) => {
+          const newFileSystem = { ...prev.fileSystem };
+          const activePath = `/home/${nickname}/active`;
+          const activeNode = getNodeAtPath(newFileSystem, activePath);
+          if (activeNode && activeNode.type === "directory") {
+            activeNode.children = items.map((item) => ({
+              name: `${item.nickname}.txt`,
+              type: "file",
+              content: item.content,
+            }));
+          }
+          return { ...prev, fileSystem: newFileSystem };
+        });
+      } catch (e) {
+        console.error("Failed to load active comments:", e);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [nickname]);
+
   // ========================================
   // UTILITY FUNCTIONS
   // ========================================
@@ -120,6 +159,8 @@ export const useTerminal = (nickname: string) => {
 
       // Parse command for special handling
       const [cmd, ...args] = command.trim().split(" ");
+
+      // Removed special 'exit' behavior (use UI close instead)
 
       // Handle commands that modify terminal state
       if (cmd === "cd") {

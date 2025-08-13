@@ -4,10 +4,11 @@ import { useTerminal } from "./hooks/useTerminal";
 import TerminalLine from "./components/TerminalLine";
 import TerminalInput from "./components/TerminalInput";
 import AsciiArt from "./components/AsciiArt";
+import ChessWindow from "./components/ChessWindow";
 import PasswordScreen from "./components/PasswordScreen";
 import NicknameScreen from "./components/NicknameScreen";
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { getOrCreateDeviceId } from "./utils/device";
 
 // ========================================
@@ -100,10 +101,35 @@ export default function Home() {
   const { lines, currentDirectory, executeCommand, history, fileSystem } =
     useTerminal(nickname || "user");
 
+  // Chess window state
+  const [isChessOpen, setIsChessOpen] = useState(false);
+
+  // Ensure window toggles immediately on command
+  const handleExecute = useCallback(
+    (cmd: string) => {
+      const name = cmd.trim().split(" ")[0];
+      if (name === "chess") setIsChessOpen(true);
+      executeCommand(cmd);
+    },
+    [executeCommand]
+  );
+
   /** Reference to the terminal container for auto-scrolling */
   const terminalRef = useRef<HTMLDivElement>(null);
 
   // ========================================
+  // Open Chess window only when the latest line is the chess command/output
+  useEffect(() => {
+    if (lines.length === 0) return;
+    const last = lines[lines.length - 1];
+    const isChessCmd =
+      last.type === "command" && last.content.trim().split(" ")[0] === "chess";
+    const isChessOutput =
+      last.type === "output" && last.content.includes("chess.exe running");
+    if (isChessCmd || isChessOutput) {
+      setIsChessOpen(true);
+    }
+  }, [lines]);
   // EFFECTS
   // ========================================
 
@@ -186,14 +212,14 @@ export default function Home() {
     if (!nickname) return null;
     return (
       <TerminalInput
-        onExecute={executeCommand}
+        onExecute={handleExecute}
         history={history}
         currentDirectory={currentDirectory}
         nickname={nickname}
         fileSystem={fileSystem}
       />
     );
-  }, [executeCommand, history, currentDirectory, nickname, fileSystem]);
+  }, [handleExecute, history, currentDirectory, nickname, fileSystem]);
 
   // ========================================
   // RENDER LOGIC
@@ -212,6 +238,7 @@ export default function Home() {
   // Step 3: Show main terminal (after password and nickname are set)
   return (
     <>
+      {isChessOpen && <ChessWindow onClose={() => setIsChessOpen(false)} />}
       {/* Scan lines overlay - always on top */}
       {crtEnabled && <div className="scanlines-overlay"></div>}
 
@@ -230,13 +257,11 @@ export default function Home() {
         className="terminal-container"
         suppressHydrationWarning={true}
         onClick={() => {
-          // Focus the hidden input when clicking anywhere in the terminal
-          const input = document.querySelector(
-            'input[type="text"]'
-          ) as HTMLInputElement;
-          if (input) {
-            input.focus();
-          }
+          // Focus the visible contentEditable input when clicking padding/anywhere
+          const el = document.querySelector(
+            '.terminal-line .command [contenteditable=""]'
+          ) as HTMLElement | null;
+          el?.focus();
         }}
       >
         {/* ASCII Art at the top */}

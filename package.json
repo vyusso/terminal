@@ -9,10 +9,12 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "chess.js": "^1.4.0",
     "firebase": "^12.0.0",
     "next": "15.4.5",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "stockfish": "^10.0.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
