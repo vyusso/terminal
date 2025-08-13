@@ -174,13 +174,16 @@ const executeLs = (args: string[], state: TerminalState): CommandResult => {
     return { output: [] }; // Empty directory
   }
 
-  // Sort children: directories first, then files, both alphabetically
-  const sortedChildren = children.sort((a, b) => {
-    if (a.type !== b.type) {
-      return a.type === "directory" ? -1 : 1;
-    }
-    return a.name.localeCompare(b.name);
-  });
+  // For shared active directory, preserve insertion order (already created by fetch)
+  const isActiveDir = /^\/home\/[^/]+\/active$/.test(targetPath);
+  const sortedChildren = isActiveDir
+    ? children
+    : children.slice().sort((a, b) => {
+        if (a.type !== b.type) {
+          return a.type === "directory" ? -1 : 1;
+        }
+        return a.name.localeCompare(b.name);
+      });
 
   // Format output - just return the names
   const output = sortedChildren.map((child) => child.name);
