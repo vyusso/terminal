@@ -21,7 +21,6 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
   const [legalTargets, setLegalTargets] = useState<Square[]>([]);
   const [gameOverText, setGameOverText] = useState<string | null>(null);
   const [boardSize, setBoardSize] = useState<number>(400);
-  const [isMobile, setIsMobile] = useState<boolean>(false);
   const [lastMove, setLastMove] = useState<{
     from: { r: number; c: number } | null;
     to: { r: number; c: number } | null;
@@ -40,7 +39,9 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
   const [thinkingDots, setThinkingDots] = useState<number>(0);
   const [opponent, setOpponent] = useState<string>("-");
   const [engineSide, setEngineSide] = useState<"w" | "b" | null>(null);
-  const moveAudioRef = useRef<HTMLAudioElement | null>(null);
+  const audioPoolRef = useRef<HTMLAudioElement[]>([]);
+  const nextAudioIndexRef = useRef<number>(0);
+  const audioUnlockedRef = useRef<boolean>(false);
 
   // Responsive sizing for mobile/desktop
   useEffect(() => {
@@ -50,8 +51,6 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
         typeof window !== "undefined"
           ? window.visualViewport?.height ?? window.innerHeight
           : 768;
-      const mobile = vw <= 768;
-      setIsMobile(mobile);
       // Fit board within viewport while keeping margins
       const maxBoard = 400;
       const minBoard = 240;
@@ -71,24 +70,51 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
 
   const pieceToSvg = useMemo(() => createPieceMap(), []);
 
-  // Prepare move sound once on mount
+  // Prepare a small audio pool and unlock on first interaction (mobile-friendly)
   useEffect(() => {
-    moveAudioRef.current = new Audio("/audio/chessmove.mp3");
-    if (moveAudioRef.current) {
-      moveAudioRef.current.volume = 1.0;
-      moveAudioRef.current.preload = "auto";
+    const pool: HTMLAudioElement[] = [];
+    for (let i = 0; i < 3; i += 1) {
+      const a = new Audio("/audio/chessmove.mp3");
+      a.preload = "auto";
+      try {
+        a.load();
+      } catch {}
+      pool.push(a);
     }
+    audioPoolRef.current = pool;
+
+    const unlock = async () => {
+      if (audioUnlockedRef.current) return;
+      audioUnlockedRef.current = true;
+      for (const a of audioPoolRef.current) {
+        try {
+          await a.play();
+          a.pause();
+          a.currentTime = 0;
+        } catch {}
+      }
+    };
+
+    const el = containerRef.current;
+    const pointerDownHandler = () => void unlock();
+    el?.addEventListener("pointerdown", pointerDownHandler);
+    const keyHandler = () => void unlock();
+    document.addEventListener("keydown", keyHandler, { once: true });
+    return () => {
+      el?.removeEventListener("pointerdown", pointerDownHandler);
+      document.removeEventListener("keydown", keyHandler);
+    };
   }, []);
 
   const playMoveSound = () => {
-    const el = moveAudioRef.current;
-    if (!el) return;
+    const pool = audioPoolRef.current;
+    if (!pool || pool.length === 0) return;
+    const index = nextAudioIndexRef.current % pool.length;
+    nextAudioIndexRef.current = (index + 1) % pool.length;
+    const a = pool[index];
     try {
-      el.currentTime = 0;
-      // Some browsers need a clone to overlap quick consecutive plays
-      const clone = el.cloneNode(true) as HTMLAudioElement;
-      clone.volume = el.volume;
-      void clone.play();
+      a.currentTime = 0;
+      void a.play();
     } catch {}
   };
 
