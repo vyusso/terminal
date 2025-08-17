@@ -491,10 +491,11 @@ input.command::placeholder {
   .chess-window {
     right: auto;
     left: 50%;
-    top: 12px;
-    transform: translateX(-50%);
-    bottom: 12px;
+    top: 45%;
+    transform: translate(-50%, -45%);
+    bottom: auto;
     overflow: auto;
+    max-height: calc(100svh - 24px);
   }
 }
 
@@ -507,11 +508,16 @@ input.command::placeholder {
   color: #ff6b35;
   text-shadow: none;
   letter-spacing: normal;
+  position: relative;
+  z-index: 10040;
 }
 
 .chess-modal-overlay {
   position: absolute;
-  inset: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 42px; /* leave header clickable */
   background: rgba(0, 0, 0, 0.86);
   display: flex;
   align-items: center;

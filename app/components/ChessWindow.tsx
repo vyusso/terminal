@@ -309,15 +309,7 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
       className="chess-window"
       style={{ width: boardSize + 20 }}
     >
-      <div
-        className="chess-header"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 8,
-        }}
-      >
+      <div className="chess-header" style={{ gap: 8 }}>
         <div>chess.exe</div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div
@@ -339,7 +331,7 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
 
       {/* Setup modal overlay */}
       {showSetup !== "none" && (
-        <div className="chess-modal-overlay">
+        <div className="chess-modal-overlay" style={{ pointerEvents: "auto" }}>
           <div className="chess-modal">
             {showSetup === "choose" && (
               <>
