@@ -806,6 +806,34 @@ a {
   opacity: 0.9;
 }
 
+/* Simple input style for room code (no transitions, plain orange on black) */
+.room-code-input {
+  background: transparent;
+  border: 1px solid #ff6b35;
+  border-radius: 0;
+  color: #ccc;
+  font-family: inherit;
+  font-size: inherit;
+  text-shadow: none;
+  letter-spacing: normal;
+  outline: none;
+  caret-color: #ff6b35;
+  min-width: 160px;
+  text-align: center;
+  padding: 8px 12px;
+  box-shadow: none;
+  transition: none;
+  text-transform: uppercase;
+}
+.room-code-input::placeholder {
+  color: #ccc;
+  opacity: 0.6;
+}
+.room-code-input:focus {
+  border-color: #ff6b35;
+  box-shadow: none;
+}
+
 .error-message {
   color: #ff6b6b;
   font-size: 1.1em;

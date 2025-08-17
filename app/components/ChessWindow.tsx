@@ -61,6 +61,12 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
   const roomUnsubRef = useRef<null | (() => void)>(null);
   const deviceIdRef = useRef<string>("");
   const roomCodeRef = useRef<string | null>(null);
+  // Room modal sub-step and inputs
+  const [roomSubstep, setRoomSubstep] = useState<"choice" | "create" | "join">(
+    "choice"
+  );
+  const [joinCode, setJoinCode] = useState<string>("");
+  const [roomError, setRoomError] = useState<string>("");
   useEffect(() => {
     deviceIdRef.current = getOrCreateDeviceId();
   }, []);
@@ -615,187 +621,343 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
             {showSetup === "room" && (
               <>
                 <div className="chess-modal-title">Room</div>
-                <div className="chess-modal-buttons">
-                  <button
-                    className="clickable btn btn--lg"
-                    onClick={() => {
-                      // Create room: ask side, generate code, create doc, subscribe
-                      try {
-                        const side = (
-                          window.prompt("Choose side: w or b", "w") || "w"
-                        ).toLowerCase();
-                        const youPlay = side === "b" ? "b" : "w";
-                        const code = generateRoomCode();
-                        // Disable engine in room mode
-                        setBotLevel(null);
-                        setEngineSide(youPlay === "b" ? "w" : null); // flip board if black
-                        const startFen = new Chess().fen();
-                        const myNick =
-                          localStorage.getItem("terminal_nickname");
-                        createRoom(
-                          code,
-                          deviceIdRef.current,
-                          youPlay,
-                          startFen,
-                          myNick
-                        )
-                          .then(() => {
-                            setRoomCode(code);
-                            setMySide(youPlay);
-                            setRoomVersion(0);
-                            setRoomStatus("waiting");
-                            // Subscribe to room
-                            if (roomUnsubRef.current) roomUnsubRef.current();
-                            roomUnsubRef.current = subscribeRoom(
+                {roomSubstep === "choice" && (
+                  <>
+                    <div className="chess-modal-buttons">
+                      <button
+                        className="clickable btn btn--lg"
+                        onClick={() => {
+                          setRoomError("");
+                          setRoomSubstep("create");
+                        }}
+                      >
+                        Create
+                      </button>
+                      <button
+                        className="clickable btn btn--lg"
+                        onClick={() => {
+                          setRoomError("");
+                          setJoinCode("");
+                          setRoomSubstep("join");
+                        }}
+                      >
+                        Join
+                      </button>
+                    </div>
+                    <div style={{ marginTop: 14 }}>
+                      <button
+                        className="clickable btn btn--md"
+                        onClick={() => setShowSetup("choose")}
+                        style={{ opacity: 0.85 }}
+                      >
+                        Back
+                      </button>
+                    </div>
+                  </>
+                )}
+                {roomSubstep === "create" && (
+                  <>
+                    <div className="chess-modal-title">Choose color</div>
+                    <div className="chess-modal-buttons">
+                      <button
+                        className="clickable btn btn--lg"
+                        onClick={() => {
+                          setRoomError("");
+                          try {
+                            const youPlay: "w" | "b" = "w";
+                            const code = generateRoomCode();
+                            setBotLevel(null);
+                            setEngineSide(null);
+                            const startFen = new Chess().fen();
+                            const myNick =
+                              localStorage.getItem("terminal_nickname");
+                            createRoom(
                               code,
-                              (room: RoomDoc | null) => {
-                                if (!room) {
-                                  setGameOverText(
-                                    "Opponent left. Room closed."
-                                  );
-                                  setRoomStatus("finished");
-                                  setRoomCode(null);
-                                  setMySide(null);
-                                  return;
-                                }
-                                // Infer my side if not known
-                                if (!mySide) {
-                                  if (
-                                    room.players.white === deviceIdRef.current
-                                  )
-                                    setMySide("w");
-                                  else if (
-                                    room.players.black === deviceIdRef.current
-                                  )
-                                    setMySide("b");
-                                }
-                                setRoomStatus(room.status);
-                                setRoomVersion(room.version);
-                                void updateOpponentFromRoom(room);
-                                // Load FEN & last move
-                                try {
-                                  gameRef.current = new Chess(room.fen);
-                                  setBoard(fromFen(room.fen));
-                                  setTurn(
-                                    gameRef.current.turn() === "w"
-                                      ? "white"
-                                      : "black"
-                                  );
-                                  if (room.lastMove) {
-                                    const lf = fromCoord(room.lastMove.from);
-                                    const lt = fromCoord(room.lastMove.to);
-                                    setLastMove({ from: lf, to: lt });
+                              deviceIdRef.current,
+                              youPlay,
+                              startFen,
+                              myNick
+                            )
+                              .then(() => {
+                                setRoomCode(code);
+                                setMySide(youPlay);
+                                setRoomVersion(0);
+                                setRoomStatus("waiting");
+                                if (roomUnsubRef.current)
+                                  roomUnsubRef.current();
+                                roomUnsubRef.current = subscribeRoom(
+                                  code,
+                                  (room: RoomDoc | null) => {
+                                    if (!room) {
+                                      setGameOverText(
+                                        "Opponent left. Room closed."
+                                      );
+                                      setRoomStatus("finished");
+                                      setRoomCode(null);
+                                      setMySide(null);
+                                      return;
+                                    }
+                                    setRoomStatus(room.status);
+                                    setRoomVersion(room.version);
+                                    void updateOpponentFromRoom(room);
+                                    try {
+                                      gameRef.current = new Chess(room.fen);
+                                      setBoard(fromFen(room.fen));
+                                      setTurn(
+                                        gameRef.current.turn() === "w"
+                                          ? "white"
+                                          : "black"
+                                      );
+                                      if (room.lastMove) {
+                                        const lf = fromCoord(
+                                          room.lastMove.from
+                                        );
+                                        const lt = fromCoord(room.lastMove.to);
+                                        setLastMove({ from: lf, to: lt });
+                                      }
+                                    } catch {}
                                   }
-                                } catch {}
-                              }
-                            );
-                            setShowSetup("none");
-                            void updateOpponentFromRoom({
-                              fen: startFen,
-                              turn: "w",
-                              players: {
-                                white:
-                                  youPlay === "w" ? deviceIdRef.current : null,
-                                black:
-                                  youPlay === "b" ? deviceIdRef.current : null,
-                              },
-                              host: deviceIdRef.current,
-                              status: "waiting",
-                              lastMove: null,
-                              version: 0,
-                            } as RoomDoc);
-                          })
-                          .catch((e) => {
-                            alert(e?.message || "Failed to create room");
-                          });
-                      } catch {}
-                    }}
-                  >
-                    Create
-                  </button>
-                  <button
-                    className="clickable btn btn--lg"
-                    onClick={() => {
-                      // Join room: ask code, join, subscribe
-                      try {
-                        const code = (window.prompt("Enter room code") || "")
-                          .trim()
-                          .toUpperCase();
-                        if (!code) return;
-                        // Disable engine in room mode
-                        setBotLevel(null);
-                        setEngineSide(null);
-                        const myNick =
-                          localStorage.getItem("terminal_nickname");
-                        joinRoom(code, deviceIdRef.current, myNick)
-                          .then(() => {
-                            setRoomCode(code);
-                            // Subscribe to room
-                            if (roomUnsubRef.current) roomUnsubRef.current();
-                            roomUnsubRef.current = subscribeRoom(
+                                );
+                                setShowSetup("none");
+                                void updateOpponentFromRoom({
+                                  fen: startFen,
+                                  turn: "w",
+                                  players: {
+                                    white: deviceIdRef.current,
+                                    black: null,
+                                  },
+                                  host: deviceIdRef.current,
+                                  status: "waiting",
+                                  lastMove: null,
+                                  version: 0,
+                                } as RoomDoc);
+                              })
+                              .catch((e) => {
+                                setRoomError(
+                                  e?.message || "Failed to create room"
+                                );
+                              });
+                          } catch {
+                            setRoomError("Failed to create room");
+                          }
+                        }}
+                      >
+                        White
+                      </button>
+                      <button
+                        className="clickable btn btn--lg"
+                        onClick={() => {
+                          setRoomError("");
+                          try {
+                            const youPlay: "w" | "b" = "b";
+                            const code = generateRoomCode();
+                            setBotLevel(null);
+                            setEngineSide("w");
+                            const startFen = new Chess().fen();
+                            const myNick =
+                              localStorage.getItem("terminal_nickname");
+                            createRoom(
                               code,
-                              (room: RoomDoc | null) => {
-                                if (!room) {
-                                  setGameOverText(
-                                    "Opponent left. Room closed."
-                                  );
-                                  setRoomStatus("finished");
-                                  setRoomCode(null);
-                                  setMySide(null);
-                                  return;
-                                }
-                                // Determine my side
-                                if (
-                                  room.players.white === deviceIdRef.current
-                                ) {
-                                  setMySide("w");
-                                  setEngineSide(null); // white -> no flip
-                                } else if (
-                                  room.players.black === deviceIdRef.current
-                                ) {
-                                  setMySide("b");
-                                  setEngineSide("w"); // flip board for black
-                                }
-                                setRoomStatus(room.status);
-                                setRoomVersion(room.version);
-                                void updateOpponentFromRoom(room);
-                                try {
-                                  gameRef.current = new Chess(room.fen);
-                                  setBoard(fromFen(room.fen));
-                                  setTurn(
-                                    gameRef.current.turn() === "w"
-                                      ? "white"
-                                      : "black"
-                                  );
-                                  if (room.lastMove) {
-                                    const lf = fromCoord(room.lastMove.from);
-                                    const lt = fromCoord(room.lastMove.to);
-                                    setLastMove({ from: lf, to: lt });
+                              deviceIdRef.current,
+                              youPlay,
+                              startFen,
+                              myNick
+                            )
+                              .then(() => {
+                                setRoomCode(code);
+                                setMySide(youPlay);
+                                setRoomVersion(0);
+                                setRoomStatus("waiting");
+                                if (roomUnsubRef.current)
+                                  roomUnsubRef.current();
+                                roomUnsubRef.current = subscribeRoom(
+                                  code,
+                                  (room: RoomDoc | null) => {
+                                    if (!room) {
+                                      setGameOverText(
+                                        "Opponent left. Room closed."
+                                      );
+                                      setRoomStatus("finished");
+                                      setRoomCode(null);
+                                      setMySide(null);
+                                      return;
+                                    }
+                                    setRoomStatus(room.status);
+                                    setRoomVersion(room.version);
+                                    void updateOpponentFromRoom(room);
+                                    try {
+                                      gameRef.current = new Chess(room.fen);
+                                      setBoard(fromFen(room.fen));
+                                      setTurn(
+                                        gameRef.current.turn() === "w"
+                                          ? "white"
+                                          : "black"
+                                      );
+                                      if (room.lastMove) {
+                                        const lf = fromCoord(
+                                          room.lastMove.from
+                                        );
+                                        const lt = fromCoord(room.lastMove.to);
+                                        setLastMove({ from: lf, to: lt });
+                                      }
+                                    } catch {}
                                   }
-                                } catch {}
-                              }
-                            );
-                            setShowSetup("none");
-                            // Opponent will be resolved via subscribe callback
-                          })
-                          .catch((e) =>
-                            alert(e?.message || "Failed to join room")
-                          );
-                      } catch {}
-                    }}
-                  >
-                    Join
-                  </button>
-                </div>
-                <div style={{ marginTop: 14 }}>
-                  <button
-                    className="clickable btn btn--md"
-                    onClick={() => setShowSetup("choose")}
-                    style={{ opacity: 0.85 }}
-                  >
-                    Back
-                  </button>
-                </div>
+                                );
+                                setShowSetup("none");
+                                void updateOpponentFromRoom({
+                                  fen: startFen,
+                                  turn: "w",
+                                  players: {
+                                    white: null,
+                                    black: deviceIdRef.current,
+                                  },
+                                  host: deviceIdRef.current,
+                                  status: "waiting",
+                                  lastMove: null,
+                                  version: 0,
+                                } as RoomDoc);
+                              })
+                              .catch((e) => {
+                                setRoomError(
+                                  e?.message || "Failed to create room"
+                                );
+                              });
+                          } catch {
+                            setRoomError("Failed to create room");
+                          }
+                        }}
+                      >
+                        Black
+                      </button>
+                    </div>
+                    {roomError && (
+                      <div style={{ marginTop: 10, color: "#ff6b6b" }}>
+                        {roomError}
+                      </div>
+                    )}
+                    <div style={{ marginTop: 14 }}>
+                      <button
+                        className="clickable btn btn--md"
+                        onClick={() => setRoomSubstep("choice")}
+                        style={{ opacity: 0.85 }}
+                      >
+                        Back
+                      </button>
+                    </div>
+                  </>
+                )}
+                {roomSubstep === "join" && (
+                  <>
+                    <div className="chess-modal-title">Enter room code</div>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                        justifyContent: "center",
+                      }}
+                    >
+                      <input
+                        value={joinCode}
+                        onChange={(e) =>
+                          setJoinCode(e.target.value.toUpperCase())
+                        }
+                        placeholder="ABC123"
+                        className="room-code-input"
+                      />
+                      <button
+                        className="clickable btn btn--lg"
+                        onClick={() => {
+                          setRoomError("");
+                          const code = (joinCode || "").trim().toUpperCase();
+                          if (!code) {
+                            setRoomError("Enter a code");
+                            return;
+                          }
+                          try {
+                            setBotLevel(null);
+                            setEngineSide(null);
+                            const myNick =
+                              localStorage.getItem("terminal_nickname");
+                            joinRoom(code, deviceIdRef.current, myNick)
+                              .then(() => {
+                                setRoomCode(code);
+                                if (roomUnsubRef.current)
+                                  roomUnsubRef.current();
+                                roomUnsubRef.current = subscribeRoom(
+                                  code,
+                                  (room: RoomDoc | null) => {
+                                    if (!room) {
+                                      setGameOverText(
+                                        "Opponent left. Room closed."
+                                      );
+                                      setRoomStatus("finished");
+                                      setRoomCode(null);
+                                      setMySide(null);
+                                      return;
+                                    }
+                                    if (
+                                      room.players.white === deviceIdRef.current
+                                    ) {
+                                      setMySide("w");
+                                      setEngineSide(null);
+                                    } else if (
+                                      room.players.black === deviceIdRef.current
+                                    ) {
+                                      setMySide("b");
+                                      setEngineSide("w");
+                                    }
+                                    setRoomStatus(room.status);
+                                    setRoomVersion(room.version);
+                                    void updateOpponentFromRoom(room);
+                                    try {
+                                      gameRef.current = new Chess(room.fen);
+                                      setBoard(fromFen(room.fen));
+                                      setTurn(
+                                        gameRef.current.turn() === "w"
+                                          ? "white"
+                                          : "black"
+                                      );
+                                      if (room.lastMove) {
+                                        const lf = fromCoord(
+                                          room.lastMove.from
+                                        );
+                                        const lt = fromCoord(room.lastMove.to);
+                                        setLastMove({ from: lf, to: lt });
+                                      }
+                                    } catch {}
+                                  }
+                                );
+                                setShowSetup("none");
+                              })
+                              .catch((e) =>
+                                setRoomError(
+                                  e?.message || "Failed to join room"
+                                )
+                              );
+                          } catch {
+                            setRoomError("Failed to join room");
+                          }
+                        }}
+                      >
+                        Join
+                      </button>
+                    </div>
+                    {roomError && (
+                      <div style={{ marginTop: 10, color: "#ff6b6b" }}>
+                        {roomError}
+                      </div>
+                    )}
+                    <div style={{ marginTop: 14 }}>
+                      <button
+                        className="clickable btn btn--md"
+                        onClick={() => setRoomSubstep("choice")}
+                        style={{ opacity: 0.85 }}
+                      >
+                        Back
+                      </button>
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>
