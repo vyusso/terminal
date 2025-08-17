@@ -22,6 +22,10 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
   const [gameOverText, setGameOverText] = useState<string | null>(null);
   const [boardSize, setBoardSize] = useState<number>(400);
   const [isMobile, setIsMobile] = useState<boolean>(false);
+  const [lastMove, setLastMove] = useState<{
+    from: { r: number; c: number } | null;
+    to: { r: number; c: number } | null;
+  }>({ from: null, to: null });
   // Setup modal state: 'choose' (Bot or Room), 'bot' (difficulty), 'color' (pick side), 'room' (Create/Join), 'none' (hidden)
   const [showSetup, setShowSetup] = useState<
     "choose" | "bot" | "color" | "room" | "none"
@@ -140,6 +144,12 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
                 setTurn(gameRef.current.turn() === "w" ? "white" : "black");
                 setSelected(null);
                 setLegalTargets([]);
+                // Track last move squares for highlighting (engine move)
+                try {
+                  const fromRc = fromCoord(from);
+                  const toRc = fromCoord(to);
+                  setLastMove({ from: fromRc, to: toRc });
+                } catch {}
                 updateStatus();
                 playMoveSound();
               }
@@ -256,6 +266,10 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
       if (move) {
         setBoard(fromFen(game.fen()));
         setTurn(game.turn() === "w" ? "white" : "black");
+        // Track last move squares for highlighting (user move)
+        const startR = selected.r;
+        const startC = selected.c;
+        setLastMove({ from: { r: startR, c: startC }, to: { r, c } });
         setSelected(null);
         setLegalTargets([]);
         updateStatus();
@@ -514,11 +528,24 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
                 legalTargets as ReadonlyArray<Square>
               ).includes(toCoord(mr, mc) as Square);
               const clickable = !!piece; // show pointer only on pieces
+              const isLastFrom =
+                !!lastMove.from &&
+                lastMove.from.r === mr &&
+                lastMove.from.c === mc;
+              const isLastTo =
+                !!lastMove.to && lastMove.to.r === mr && lastMove.to.c === mc;
+              const squareClassName = [
+                clickable ? "clickable" : "",
+                isLastFrom ? "chess-square--last-from" : "",
+                isLastTo ? "chess-square--last-to" : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
               return (
                 <div
                   key={`${r}-${c}`}
                   onClick={() => handleSquareClick(mr, mc)}
-                  className={clickable ? "clickable" : undefined}
+                  className={squareClassName || undefined}
                   style={{
                     background: isDark ? "#111" : "#000",
                     border: isSelected
@@ -616,4 +643,13 @@ function toCoord(r: number, c: number): string {
   const file = String.fromCharCode("a".charCodeAt(0) + c);
   const rank = 8 - r;
   return `${file}${rank}`;
+}
+
+function fromCoord(coord: string): { r: number; c: number } {
+  // coord like "e2"
+  const file = coord.charCodeAt(0) - "a".charCodeAt(0);
+  const rank = parseInt(coord[1], 10);
+  const r = 8 - rank;
+  const c = file;
+  return { r, c };
 }

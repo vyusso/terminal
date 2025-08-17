@@ -586,6 +586,14 @@ input.command::placeholder {
   border: 1px dashed #ff6b35;
 }
 
+/* Subtle outline for last move squares */
+.chess-square--last-from {
+  box-shadow: inset 0 0 0 2px rgba(255, 107, 53, 0.3);
+}
+.chess-square--last-to {
+  box-shadow: inset 0 0 0 2px rgba(255, 107, 53, 0.3);
+}
+
 /* Hide scrollbar for webkit browsers */
 .terminal-container::-webkit-scrollbar {
   display: none;
