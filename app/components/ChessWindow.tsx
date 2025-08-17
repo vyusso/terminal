@@ -42,7 +42,10 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
   useEffect(() => {
     const compute = () => {
       const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
-      const vh = typeof window !== "undefined" ? window.innerHeight : 768;
+      const vh =
+        typeof window !== "undefined"
+          ? window.visualViewport?.height ?? window.innerHeight
+          : 768;
       const mobile = vw <= 768;
       setIsMobile(mobile);
       // Fit board within viewport while keeping margins
@@ -54,7 +57,12 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
     };
     compute();
     window.addEventListener("resize", compute);
-    return () => window.removeEventListener("resize", compute);
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", compute);
+    return () => {
+      window.removeEventListener("resize", compute);
+      vv?.removeEventListener("resize", compute);
+    };
   }, []);
 
   const pieceToSvg = useMemo(() => createPieceMap(), []);
@@ -299,14 +307,7 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
       ref={containerRef}
       tabIndex={-1}
       className="chess-window"
-      style={{
-        right: isMobile ? undefined : 20,
-        left: isMobile ? "50%" : undefined,
-        top: isMobile ? "50%" : undefined,
-        transform: isMobile ? "translate(-50%, -50%)" : undefined,
-        bottom: isMobile ? undefined : 20,
-        width: boardSize + 20,
-      }}
+      style={{ width: boardSize + 20 }}
     >
       <div
         className="chess-header"

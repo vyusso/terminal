@@ -479,7 +479,7 @@ input.command::placeholder {
   box-shadow: 0 0 12px rgba(255, 107, 53, 0.4);
   z-index: 10020;
   max-width: calc(100vw - 16px);
-  max-height: calc(100vh - 24px);
+  max-height: calc(100svh - 24px);
   padding-bottom: env(safe-area-inset-bottom);
   pointer-events: auto;
   text-shadow: none;
@@ -491,9 +491,10 @@ input.command::placeholder {
   .chess-window {
     right: auto;
     left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    bottom: auto;
+    top: 12px;
+    transform: translateX(-50%);
+    bottom: 12px;
+    overflow: auto;
   }
 }
 
