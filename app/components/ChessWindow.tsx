@@ -3,14 +3,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Chess, type Square, type Move } from "chess.js";
 import {
-  createRoom,
-  joinRoom,
-  subscribeRoom,
-  submitMove,
-  generateRoomCode,
-  type RoomDoc,
-} from "../lib/chessRooms";
+  fromFen as parseFen,
+  createPieceMap,
+  toCoord,
+  fromCoord,
+} from "../utils/chess/utils";
+import { subscribeRoom, submitMove, type RoomDoc } from "../lib/chessRooms";
 import { getOrCreateDeviceId } from "../utils/device";
+import { useMoveSound } from "../hooks/useMoveSound";
+import { RoomModal } from "./RoomModal";
+import Image from "next/image";
 
 type Color = "white" | "black";
 
@@ -21,7 +23,7 @@ interface ChessWindowProps {
 export default function ChessWindow({ onClose }: ChessWindowProps) {
   const gameRef = useRef<Chess>(new Chess());
   const [board, setBoard] = useState<string[][]>(() =>
-    fromFen(gameRef.current.fen())
+    parseFen(gameRef.current.fen())
   );
   const [turn, setTurn] = useState<Color>("white");
   const [selected, setSelected] = useState<{ r: number; c: number } | null>(
@@ -48,9 +50,8 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
   const [thinkingDots, setThinkingDots] = useState<number>(0);
   const [opponent, setOpponent] = useState<string>("-");
   const [engineSide, setEngineSide] = useState<"w" | "b" | null>(null);
-  const audioPoolRef = useRef<HTMLAudioElement[]>([]);
-  const nextAudioIndexRef = useRef<number>(0);
-  const audioUnlockedRef = useRef<boolean>(false);
+  // Move sound player (mobile-friendly) using a small preloaded pool
+  const playMoveSound = useMoveSound("/audio/chessmove.mp3");
   // Room state
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [roomVersion, setRoomVersion] = useState<number>(0);
@@ -61,15 +62,11 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
   const roomUnsubRef = useRef<null | (() => void)>(null);
   const deviceIdRef = useRef<string>("");
   const roomCodeRef = useRef<string | null>(null);
-  // Room modal sub-step and inputs
-  const [roomSubstep, setRoomSubstep] = useState<"choice" | "create" | "join">(
-    "choice"
-  );
-  const [joinCode, setJoinCode] = useState<string>("");
-  const [roomError, setRoomError] = useState<string>("");
+  const lastRoomVersionRef = useRef<number>(-1);
+  // Room modal sub-step and input moved into RoomModal component
   useEffect(() => {
     deviceIdRef.current = getOrCreateDeviceId();
-  }, []);
+  }, [playMoveSound]);
   useEffect(() => {
     roomCodeRef.current = roomCode;
   }, [roomCode]);
@@ -137,53 +134,7 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
 
   const pieceToSvg = useMemo(() => createPieceMap(), []);
 
-  // Prepare a small audio pool and unlock on first interaction (mobile-friendly)
-  useEffect(() => {
-    const pool: HTMLAudioElement[] = [];
-    for (let i = 0; i < 3; i += 1) {
-      const a = new Audio("/audio/chessmove.mp3");
-      a.preload = "auto";
-      try {
-        a.load();
-      } catch {}
-      pool.push(a);
-    }
-    audioPoolRef.current = pool;
-
-    const unlock = async () => {
-      if (audioUnlockedRef.current) return;
-      audioUnlockedRef.current = true;
-      for (const a of audioPoolRef.current) {
-        try {
-          await a.play();
-          a.pause();
-          a.currentTime = 0;
-        } catch {}
-      }
-    };
-
-    const el = containerRef.current;
-    const pointerDownHandler = () => void unlock();
-    el?.addEventListener("pointerdown", pointerDownHandler);
-    const keyHandler = () => void unlock();
-    document.addEventListener("keydown", keyHandler, { once: true });
-    return () => {
-      el?.removeEventListener("pointerdown", pointerDownHandler);
-      document.removeEventListener("keydown", keyHandler);
-    };
-  }, []);
-
-  const playMoveSound = () => {
-    const pool = audioPoolRef.current;
-    if (!pool || pool.length === 0) return;
-    const index = nextAudioIndexRef.current % pool.length;
-    nextAudioIndexRef.current = (index + 1) % pool.length;
-    const a = pool[index];
-    try {
-      a.currentTime = 0;
-      void a.play();
-    } catch {}
-  };
+  // sound handled by hook
 
   // Animate thinking dots while engine is thinking
   useEffect(() => {
@@ -233,7 +184,7 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
                 promotion: (promo as "q" | "r" | "b" | "n") || "q",
               });
               if (move) {
-                setBoard(fromFen(gameRef.current.fen()));
+                setBoard(parseFen(gameRef.current.fen()));
                 setTurn(gameRef.current.turn() === "w" ? "white" : "black");
                 setSelected(null);
                 setLegalTargets([]);
@@ -262,7 +213,7 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
       // Start UCI handshake
       w.postMessage("uci");
     }
-  }, [botLevel]);
+  }, [botLevel, playMoveSound]);
 
   // Update opponent when a bot level is selected or when room mode would set a name
   useEffect(() => {
@@ -391,7 +342,7 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
         promotion: "q",
       });
       if (move) {
-        setBoard(fromFen(game.fen()));
+        setBoard(parseFen(game.fen()));
         setTurn(game.turn() === "w" ? "white" : "black");
         // Track last move squares for highlighting (user move)
         const startR = selected.r;
@@ -619,346 +570,65 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
               </>
             )}
             {showSetup === "room" && (
-              <>
-                <div className="chess-modal-title">Room</div>
-                {roomSubstep === "choice" && (
-                  <>
-                    <div className="chess-modal-buttons">
-                      <button
-                        className="clickable btn btn--lg"
-                        onClick={() => {
-                          setRoomError("");
-                          setRoomSubstep("create");
-                        }}
-                      >
-                        Create
-                      </button>
-                      <button
-                        className="clickable btn btn--lg"
-                        onClick={() => {
-                          setRoomError("");
-                          setJoinCode("");
-                          setRoomSubstep("join");
-                        }}
-                      >
-                        Join
-                      </button>
-                    </div>
-                    <div style={{ marginTop: 14 }}>
-                      <button
-                        className="clickable btn btn--md"
-                        onClick={() => setShowSetup("choose")}
-                        style={{ opacity: 0.85 }}
-                      >
-                        Back
-                      </button>
-                    </div>
-                  </>
-                )}
-                {roomSubstep === "create" && (
-                  <>
-                    <div className="chess-modal-title">Choose color</div>
-                    <div className="chess-modal-buttons">
-                      <button
-                        className="clickable btn btn--lg"
-                        onClick={() => {
-                          setRoomError("");
-                          try {
-                            const youPlay: "w" | "b" = "w";
-                            const code = generateRoomCode();
-                            setBotLevel(null);
-                            setEngineSide(null);
-                            const startFen = new Chess().fen();
-                            const myNick =
-                              localStorage.getItem("terminal_nickname");
-                            createRoom(
-                              code,
-                              deviceIdRef.current,
-                              youPlay,
-                              startFen,
-                              myNick
-                            )
-                              .then(() => {
-                                setRoomCode(code);
-                                setMySide(youPlay);
-                                setRoomVersion(0);
-                                setRoomStatus("waiting");
-                                if (roomUnsubRef.current)
-                                  roomUnsubRef.current();
-                                roomUnsubRef.current = subscribeRoom(
-                                  code,
-                                  (room: RoomDoc | null) => {
-                                    if (!room) {
-                                      setGameOverText(
-                                        "Opponent left. Room closed."
-                                      );
-                                      setRoomStatus("finished");
-                                      setRoomCode(null);
-                                      setMySide(null);
-                                      return;
-                                    }
-                                    setRoomStatus(room.status);
-                                    setRoomVersion(room.version);
-                                    void updateOpponentFromRoom(room);
-                                    try {
-                                      gameRef.current = new Chess(room.fen);
-                                      setBoard(fromFen(room.fen));
-                                      setTurn(
-                                        gameRef.current.turn() === "w"
-                                          ? "white"
-                                          : "black"
-                                      );
-                                      if (room.lastMove) {
-                                        const lf = fromCoord(
-                                          room.lastMove.from
-                                        );
-                                        const lt = fromCoord(room.lastMove.to);
-                                        setLastMove({ from: lf, to: lt });
-                                      }
-                                    } catch {}
-                                  }
-                                );
-                                setShowSetup("none");
-                                void updateOpponentFromRoom({
-                                  fen: startFen,
-                                  turn: "w",
-                                  players: {
-                                    white: deviceIdRef.current,
-                                    black: null,
-                                  },
-                                  host: deviceIdRef.current,
-                                  status: "waiting",
-                                  lastMove: null,
-                                  version: 0,
-                                } as RoomDoc);
-                              })
-                              .catch((e) => {
-                                setRoomError(
-                                  e?.message || "Failed to create room"
-                                );
-                              });
-                          } catch {
-                            setRoomError("Failed to create room");
-                          }
-                        }}
-                      >
-                        White
-                      </button>
-                      <button
-                        className="clickable btn btn--lg"
-                        onClick={() => {
-                          setRoomError("");
-                          try {
-                            const youPlay: "w" | "b" = "b";
-                            const code = generateRoomCode();
-                            setBotLevel(null);
-                            setEngineSide("w");
-                            const startFen = new Chess().fen();
-                            const myNick =
-                              localStorage.getItem("terminal_nickname");
-                            createRoom(
-                              code,
-                              deviceIdRef.current,
-                              youPlay,
-                              startFen,
-                              myNick
-                            )
-                              .then(() => {
-                                setRoomCode(code);
-                                setMySide(youPlay);
-                                setRoomVersion(0);
-                                setRoomStatus("waiting");
-                                if (roomUnsubRef.current)
-                                  roomUnsubRef.current();
-                                roomUnsubRef.current = subscribeRoom(
-                                  code,
-                                  (room: RoomDoc | null) => {
-                                    if (!room) {
-                                      setGameOverText(
-                                        "Opponent left. Room closed."
-                                      );
-                                      setRoomStatus("finished");
-                                      setRoomCode(null);
-                                      setMySide(null);
-                                      return;
-                                    }
-                                    setRoomStatus(room.status);
-                                    setRoomVersion(room.version);
-                                    void updateOpponentFromRoom(room);
-                                    try {
-                                      gameRef.current = new Chess(room.fen);
-                                      setBoard(fromFen(room.fen));
-                                      setTurn(
-                                        gameRef.current.turn() === "w"
-                                          ? "white"
-                                          : "black"
-                                      );
-                                      if (room.lastMove) {
-                                        const lf = fromCoord(
-                                          room.lastMove.from
-                                        );
-                                        const lt = fromCoord(room.lastMove.to);
-                                        setLastMove({ from: lf, to: lt });
-                                      }
-                                    } catch {}
-                                  }
-                                );
-                                setShowSetup("none");
-                                void updateOpponentFromRoom({
-                                  fen: startFen,
-                                  turn: "w",
-                                  players: {
-                                    white: null,
-                                    black: deviceIdRef.current,
-                                  },
-                                  host: deviceIdRef.current,
-                                  status: "waiting",
-                                  lastMove: null,
-                                  version: 0,
-                                } as RoomDoc);
-                              })
-                              .catch((e) => {
-                                setRoomError(
-                                  e?.message || "Failed to create room"
-                                );
-                              });
-                          } catch {
-                            setRoomError("Failed to create room");
-                          }
-                        }}
-                      >
-                        Black
-                      </button>
-                    </div>
-                    {roomError && (
-                      <div style={{ marginTop: 10, color: "#ff6b6b" }}>
-                        {roomError}
-                      </div>
-                    )}
-                    <div style={{ marginTop: 14 }}>
-                      <button
-                        className="clickable btn btn--md"
-                        onClick={() => setRoomSubstep("choice")}
-                        style={{ opacity: 0.85 }}
-                      >
-                        Back
-                      </button>
-                    </div>
-                  </>
-                )}
-                {roomSubstep === "join" && (
-                  <>
-                    <div className="chess-modal-title">Enter room code</div>
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 8,
-                        justifyContent: "center",
-                      }}
-                    >
-                      <input
-                        value={joinCode}
-                        onChange={(e) =>
-                          setJoinCode(e.target.value.toUpperCase())
-                        }
-                        placeholder="ABC123"
-                        className="room-code-input"
-                      />
-                      <button
-                        className="clickable btn btn--lg"
-                        onClick={() => {
-                          setRoomError("");
-                          const code = (joinCode || "").trim().toUpperCase();
-                          if (!code) {
-                            setRoomError("Enter a code");
-                            return;
-                          }
-                          try {
-                            setBotLevel(null);
-                            setEngineSide(null);
-                            const myNick =
-                              localStorage.getItem("terminal_nickname");
-                            joinRoom(code, deviceIdRef.current, myNick)
-                              .then(() => {
-                                setRoomCode(code);
-                                if (roomUnsubRef.current)
-                                  roomUnsubRef.current();
-                                roomUnsubRef.current = subscribeRoom(
-                                  code,
-                                  (room: RoomDoc | null) => {
-                                    if (!room) {
-                                      setGameOverText(
-                                        "Opponent left. Room closed."
-                                      );
-                                      setRoomStatus("finished");
-                                      setRoomCode(null);
-                                      setMySide(null);
-                                      return;
-                                    }
-                                    if (
-                                      room.players.white === deviceIdRef.current
-                                    ) {
-                                      setMySide("w");
-                                      setEngineSide(null);
-                                    } else if (
-                                      room.players.black === deviceIdRef.current
-                                    ) {
-                                      setMySide("b");
-                                      setEngineSide("w");
-                                    }
-                                    setRoomStatus(room.status);
-                                    setRoomVersion(room.version);
-                                    void updateOpponentFromRoom(room);
-                                    try {
-                                      gameRef.current = new Chess(room.fen);
-                                      setBoard(fromFen(room.fen));
-                                      setTurn(
-                                        gameRef.current.turn() === "w"
-                                          ? "white"
-                                          : "black"
-                                      );
-                                      if (room.lastMove) {
-                                        const lf = fromCoord(
-                                          room.lastMove.from
-                                        );
-                                        const lt = fromCoord(room.lastMove.to);
-                                        setLastMove({ from: lf, to: lt });
-                                      }
-                                    } catch {}
-                                  }
-                                );
-                                setShowSetup("none");
-                              })
-                              .catch((e) =>
-                                setRoomError(
-                                  e?.message || "Failed to join room"
-                                )
-                              );
-                          } catch {
-                            setRoomError("Failed to join room");
-                          }
-                        }}
-                      >
-                        Join
-                      </button>
-                    </div>
-                    {roomError && (
-                      <div style={{ marginTop: 10, color: "#ff6b6b" }}>
-                        {roomError}
-                      </div>
-                    )}
-                    <div style={{ marginTop: 14 }}>
-                      <button
-                        className="clickable btn btn--md"
-                        onClick={() => setRoomSubstep("choice")}
-                        style={{ opacity: 0.85 }}
-                      >
-                        Back
-                      </button>
-                    </div>
-                  </>
-                )}
-              </>
+              <RoomModal
+                onClose={() => setShowSetup("choose")}
+                onSubscribed={(code) => {
+                  // establish and own the subscription here
+                  setRoomCode(code);
+                  if (roomUnsubRef.current) roomUnsubRef.current();
+                  roomUnsubRef.current = subscribeRoom(code, (room) => {
+                    if (!room) {
+                      setGameOverText("Opponent left. Room closed.");
+                      setRoomStatus("finished");
+                      setRoomCode(null);
+                      setMySide(null);
+                      return;
+                    }
+                    if (room.players.white === deviceIdRef.current) {
+                      setMySide("w");
+                      setEngineSide(null);
+                    } else if (room.players.black === deviceIdRef.current) {
+                      setMySide("b");
+                      setEngineSide("w");
+                    }
+                    setRoomStatus(room.status);
+                    // opponent move sound
+                    const prev = lastRoomVersionRef.current;
+                    lastRoomVersionRef.current = room.version;
+                    const me =
+                      room.players.white === deviceIdRef.current
+                        ? ("w" as const)
+                        : room.players.black === deviceIdRef.current
+                        ? ("b" as const)
+                        : null;
+                    if (
+                      prev >= 0 &&
+                      room.version > prev &&
+                      me &&
+                      room.turn === me
+                    )
+                      playMoveSound();
+                    setRoomVersion(room.version);
+                    void updateOpponentFromRoom(room);
+                    try {
+                      gameRef.current = new Chess(room.fen);
+                      setBoard(parseFen(room.fen));
+                      setTurn(
+                        gameRef.current.turn() === "w" ? "white" : "black"
+                      );
+                      if (room.lastMove) {
+                        const lf = fromCoord(room.lastMove.from);
+                        const lt = fromCoord(room.lastMove.to);
+                        setLastMove({ from: lf, to: lt });
+                      }
+                    } catch {}
+                  });
+                  // hide the modal overlay so the board is playable
+                  setShowSetup("none");
+                }}
+                deviceId={deviceIdRef.current}
+                setEngineSide={setEngineSide}
+              />
             )}
           </div>
         </div>
@@ -1035,7 +705,7 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
                   }}
                 >
                   {piece && (
-                    <img
+                    <Image
                       src={pieceToSvg[piece]}
                       alt={piece}
                       width={Math.floor((boardSize / 8) * 0.8)}
@@ -1043,6 +713,7 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
                       style={{
                         filter: "drop-shadow(0 0 6px rgba(255,107,53,0.4))",
                       }}
+                      priority={false}
                     />
                   )}
                 </div>
@@ -1068,63 +739,4 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
   );
 }
 
-function fromFen(fen: string): string[][] {
-  const [placement] = fen.split(" ");
-  const rows = placement.split("/");
-  return rows.map((row) => {
-    const out: string[] = [];
-    for (const ch of row) {
-      if (/\d/.test(ch)) {
-        out.push(...Array(parseInt(ch, 10)).fill(""));
-      } else {
-        const color = ch === ch.toLowerCase() ? "b" : "w";
-        const piece = ch.toLowerCase();
-        const code = color + pieceMap[piece as keyof typeof pieceMap];
-        out.push(code);
-      }
-    }
-    return out;
-  });
-}
-
-function createPieceMap(): Record<string, string> {
-  return {
-    wp: "/chess/white_pawn.svg",
-    wr: "/chess/white_rook.svg",
-    wb: "/chess/white_bishop.svg",
-    wn: "/chess/white_knight.svg",
-    wq: "/chess/white_queen.svg",
-    wk: "/chess/white_king.svg",
-    bp: "/chess/black_pawn.svg",
-    br: "/chess/black_rook.svg",
-    bb: "/chess/black_bishop.svg",
-    bn: "/chess/black_knight.svg",
-    bq: "/chess/black_queen.svg",
-    bk: "/chess/black_king.svg",
-  };
-}
-
-const pieceMap = {
-  p: "p",
-  r: "r",
-  n: "n",
-  b: "b",
-  q: "q",
-  k: "k",
-} as const;
-
-function toCoord(r: number, c: number): string {
-  // 0,0 is top-left; chess.js expects a1 bottom-left
-  const file = String.fromCharCode("a".charCodeAt(0) + c);
-  const rank = 8 - r;
-  return `${file}${rank}`;
-}
-
-function fromCoord(coord: string): { r: number; c: number } {
-  // coord like "e2"
-  const file = coord.charCodeAt(0) - "a".charCodeAt(0);
-  const rank = parseInt(coord[1], 10);
-  const r = 8 - rank;
-  const c = file;
-  return { r, c };
-}
+// moved chess utils to ../utils/chess/utils for reuse
