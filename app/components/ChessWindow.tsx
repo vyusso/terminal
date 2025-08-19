@@ -43,6 +43,15 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<Worker | null>(null);
+  const engineCapabilitiesRef = useRef<{
+    supportsElo: boolean;
+    eloMin: number | null;
+    eloMax: number | null;
+  }>({
+    supportsElo: false,
+    eloMin: null,
+    eloMax: null,
+  });
   const [botLevel, setBotLevel] = useState<number | null>(null);
   const [engineReady, setEngineReady] = useState<boolean>(false);
   const engineGoStartRef = useRef<number>(0);
@@ -161,6 +170,23 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
           w.postMessage("isready");
           return;
         }
+        if (line.startsWith("option ")) {
+          // Detect if engine supports Elo limiting and capture allowed range
+          if (
+            line.includes("name UCI_Elo") ||
+            line.includes("name UCI_LimitStrength")
+          ) {
+            engineCapabilitiesRef.current.supportsElo = true;
+          }
+          if (line.includes("name UCI_Elo")) {
+            const minMatch = line.match(/min\s+(\d+)/i);
+            const maxMatch = line.match(/max\s+(\d+)/i);
+            if (minMatch)
+              engineCapabilitiesRef.current.eloMin = parseInt(minMatch[1], 10);
+            if (maxMatch)
+              engineCapabilitiesRef.current.eloMax = parseInt(maxMatch[1], 10);
+          }
+        }
         if (
           line === "readyok" ||
           line.startsWith("id ") ||
@@ -218,9 +244,9 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
   // Update opponent when a bot level is selected or when room mode would set a name
   useEffect(() => {
     if (showSetup === "none" && botLevel) {
-      if (botLevel === 1) setOpponent("vs - (Easy - 300–400 ELO)");
-      else if (botLevel === 5) setOpponent("vs - (Medium - 800–1200 ELO)");
-      else if (botLevel === 12) setOpponent("vs - (Hard - 1600–2000 ELO)");
+      if (botLevel === 300) setOpponent("vs - (≈300 Elo)");
+      else if (botLevel === 1000) setOpponent("vs - (≈1000 Elo)");
+      else if (botLevel === 1800) setOpponent("vs - (≈1800 Elo)");
     }
   }, [showSetup, botLevel]);
 
@@ -268,34 +294,46 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
     const game = gameRef.current;
     if (game.turn() === engineSide && engineRef.current) {
       const w = engineRef.current;
-      // Map botLevel to tuned settings
-      let skill = 10;
-      let maxErr = 0;
-      let prob = 0;
-      let searchCmd = "go movetime 1500";
-      if (botLevel === 1) {
-        // Easy ~300–400 Elo
-        skill = 0;
-        maxErr = 300;
-        prob = 90;
-        searchCmd = "go depth 1";
-      } else if (botLevel === 5) {
-        // Medium ~800–1200 Elo
-        skill = 4;
-        maxErr = 150;
-        prob = 50;
-        searchCmd = "go depth 3";
-      } else if (botLevel === 12) {
-        // Hard ~1600–2000 Elo
-        skill = 12;
-        maxErr = 30;
-        prob = 10;
-        searchCmd = "go movetime 1500";
+      // Prefer Elo-limited mode if supported by engine; otherwise use tuned fallback
+      let searchCmd = "go movetime 1200";
+      const caps = engineCapabilitiesRef.current;
+      const desiredElo = botLevel; // 300, 1000, 1800
+      const canUseElo =
+        caps.supportsElo &&
+        caps.eloMin != null &&
+        caps.eloMax != null &&
+        desiredElo >= caps.eloMin &&
+        desiredElo <= caps.eloMax;
+      if (canUseElo) {
+        w.postMessage("setoption name UCI_LimitStrength value true");
+        w.postMessage(`setoption name UCI_Elo value ${desiredElo}`);
+      } else {
+        // Fallback tuning approximations
+        let skill = 10;
+        let maxErr = 0;
+        let prob = 0;
+        if (botLevel === 300) {
+          skill = 0;
+          maxErr = 300;
+          prob = 85;
+          searchCmd = "go depth 1";
+        } else if (botLevel === 1000) {
+          skill = 3;
+          maxErr = 200;
+          prob = 60;
+          searchCmd = "go depth 2";
+        } else if (botLevel === 1800) {
+          skill = 8;
+          maxErr = 80;
+          prob = 20;
+          searchCmd = "go depth 5";
+        }
+        w.postMessage(`setoption name Skill Level value ${skill}`);
+        w.postMessage(
+          `setoption name Skill Level Maximum Error value ${maxErr}`
+        );
+        w.postMessage(`setoption name Skill Level Probability value ${prob}`);
       }
-
-      w.postMessage(`setoption name Skill Level value ${skill}`);
-      w.postMessage(`setoption name Skill Level Maximum Error value ${maxErr}`);
-      w.postMessage(`setoption name Skill Level Probability value ${prob}`);
       w.postMessage(`position fen ${game.fen()}`);
       engineGoStartRef.current =
         typeof performance !== "undefined" ? performance.now() : 0;
@@ -489,7 +527,7 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
                   <button
                     className="clickable btn btn--lg"
                     onClick={() => {
-                      setBotLevel(1);
+                      setBotLevel(300);
                       setShowSetup("color");
                     }}
                   >
@@ -498,7 +536,7 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
                   <button
                     className="clickable btn btn--lg"
                     onClick={() => {
-                      setBotLevel(5);
+                      setBotLevel(1000);
                       setShowSetup("color");
                     }}
                   >
@@ -507,7 +545,7 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
                   <button
                     className="clickable btn btn--lg"
                     onClick={() => {
-                      setBotLevel(12);
+                      setBotLevel(1800);
                       setShowSetup("color");
                     }}
                   >
@@ -732,7 +770,7 @@ export default function ChessWindow({ onClose }: ChessWindowProps) {
           }}
         >
           <div>Turn: {turn}</div>
-          <div>{opponent}</div>
+          <div className="chess-opponent">{opponent}</div>
         </div>
       </div>
     </div>

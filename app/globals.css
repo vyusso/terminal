@@ -55,7 +55,7 @@ html {
   /* padding: 10px; */
   font-family: "Courier New", "Monaco", "Consolas", monospace;
   color: #eee;
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1.4;
   text-shadow: 0.06rem 0 0.06rem #ea36af, -0.125rem 0 0.06rem #75fa69;
   letter-spacing: 0.125em;
@@ -556,6 +556,11 @@ input.command::placeholder {
   text-align: center;
   text-shadow: none;
   animation: none;
+}
+
+/* Opponent line in chess.exe: keep original base font size despite global bump */
+.chess-opponent {
+  font-size: 16px;
 }
 
 .chess-board {
